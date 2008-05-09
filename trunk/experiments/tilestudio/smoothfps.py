@@ -2,41 +2,47 @@
 
 import sys, pygame
 
-# Pygame 1.8.0 is missing a SDL constant!!!
-pygame.APPACTIVE = 6
+# Pygame 1.8.0 is missing the SDL_APPxxx bit flags!!!
+pygame.APPMOUSEFOCUS = 0x01
+pygame.APPINPUTFOCUS = 0x02
+pygame.APPACTIVE = 0x04
 
 # The constants used are as follows:
-# bgsize: fixed size of the internal rendering surface before scaling it to window
+# bgsize: fixed size of the internal rendering surface before scaling
 # speed: number of pixels by which the ball is moved per frame
-# bgcolor: background color used for the window
-# delay: delay between frames in milliseconds; 20ms = 50fps
+# bgcolor: background color used to erase the internal rendering surface
+# fps: the desired frames per second
 bgsize = pygame.Rect(0, 0, 320, 240)
 speed = [1, 1]
 bgcolor = (50, 0, 0)
-delay = 20
+fps = 50
 
 # The renderTicks variable accumulates the total number of milliseconds used to
 # render each frame. The frameCount is used to display renderTicks in the windows
-# title bar every second and to reset renderTicks.
+# title bar every second and to reset renderTicks. tickError is the maximum
+# difference between the ideal 20ms delay between frames and the actual delay.
 renderTicks = 0
 frameCount = 0
 
-# If game window was minimized, pause until the window is restored. During a
-# pause the recurring timer is disabled to minimize CPU usage. 
-def pause():
-    # Stop the frame timer
-    pygame.time.set_timer(pygame.USEREVENT, 0)
+# If another application's window is selected, this becomes False and the main
+# event loop pauses by blocking on pygame.event.wait() until we regain input
+# focus again. Since we never get an initial ACTIVEEVENT, this variable must
+# be initialized to True.
+hasInputFocus = True
 
-    # Sleep idle until an ACTIVEEVENT reports the window is restored
-    # All other events are discarded
-    while True:
-        event = pygame.event.wait()
-        if event.type == pygame.ACTIVEEVENT:
-            if event.state == pygame.APPACTIVE and event.gain:
-                break
-            
-    # Restart the frame timer again
-    pygame.time.set_timer(pygame.USEREVENT, delay)
+# Dispatch a SDL event. Using the same function to handle events during a
+# paused and an active game simplifies things.
+def onEvent(event):
+
+    # If the window is getting closed, then quit this shindig
+    if event.type == pygame.QUIT:
+        sys.exit()
+
+    # If the window looses/gains input focus, update hasInputFocus
+    elif event.type == pygame.ACTIVEEVENT:
+        if event.state & pygame.APPINPUTFOCUS:
+            global hasInputFocus
+            hasInputFocus = bool(event.gain)
 
 pygame.init()
 
@@ -46,59 +52,44 @@ pygame.init()
 # or throws an exception.
 try:
 
-    # The size of the real screen surface can change since the window is resizable.
-    # Unfortunately, SDL/Pygame provides no way to limit or set the window size
-    # from the program so we have to deal with maintaining the aspect ratio when
-    # displaying the final result to the screen. We also want to set the video mode
-    # first so that any subsequent surfaces we create can be convert()ed to the
-    # same video mode as the display.
+    # The size of the real screen surface will be selectable by the user to
+    # always be either 320x240 or 640x480. For now we'll run it with 640x480
+    # to stress test the thing. We also want to set the video mode first so
+    # that any subsequent surfaces we create can be convert()ed to the same
+    # pixel format as the display for maximum blit speed.
     pygame.display.set_caption("Speed Test:")
-    screen = pygame.display.set_mode(bgsize.size, pygame.RESIZABLE)
+    screen = pygame.display.set_mode((640, 480))
     size = screen.get_rect()
 
-    # All game graphics are internally drawn to a fixed sized intermediate surface.
-    bg = pygame.Surface(size.size)
+    # All game graphics are internally drawn to a fixed sized intermediate
+    # surface, which by default will have the same pixel format as the display.
+    # If the window size was already 320x240, we could set "bg = screen" and
+    # avoid the expense of the intermediate surface.
+    bg = pygame.Surface(bgsize.size)
 
     # Load the sprite image and convert it to a format that matches the display
     # surface to get the maximum possible blit speed.
     ball = pygame.image.load("ball.png").convert()
     ballrect = ball.get_rect()
 
-    # Setup a recurring timer for desired frame rate. This is the most accurate way
-    # I found of maintaining a constant frame rate.
-    pygame.time.set_timer(pygame.USEREVENT, delay)
+    # Setup a timer object to maintain consistent frame rate
+    timer = pygame.time.Clock()
 
     while True:
         
-        # Sleep idle until either a timer event fires or the user manipulates
-        # the game window in some manner. I decided that using an event queue to
-        # defer event processing is overkill. This arrangement seems to produce
-        # accurate enough timing as is.
-        #
-        # BUGS: While the user is resizing the window, Python is suspended until
-        # the mouse button is released. However, the timer continues to fire and
-        # generate events. If the user takes too long, the timer will have filled
-        # up the entire event queue and then the VIDEORESIZE event will be lost.
-        while True:
-            event = pygame.event.wait()
+        # Poll for any pending events in the main loop
+        for event in pygame.event.get():
+            onEvent(event)
 
-            # If the frame timer fired, display the frame and update game logic
-            if event.type == pygame.USEREVENT:
-                break
-            
-            # If the window is getting closed, then quit this shindig
-            elif event.type == pygame.QUIT:
-                sys.exit()
+        # If we need to pause, block on event loop until we get focus back
+        while not hasInputFocus:
+            onEvent(pygame.event.wait())
 
-            # If the window is resized, adjust screen surface to match
-            elif event.type == pygame.VIDEORESIZE:
-                screen = pygame.display.set_mode(event.size, pygame.RESIZABLE)
-                size = screen.get_rect()
-            
-            # If the window is minimized, pause the game
-            elif event.type == pygame.ACTIVEEVENT:
-                if event.state == pygame.APPACTIVE and not event.gain:
-                    pause()
+        # This will idle sleep to maintain the desired frame rate. I don't know
+        # what I was doing wrong before, but this now this seems to be quite
+        # accurate and it does away with the pygame.time.set_timer() problem
+        # of flooding the event queue.
+        timer.tick(fps)
 
         # This will be used to measure how long it takes to render a frame
         startTicks = pygame.time.get_ticks()
@@ -107,10 +98,6 @@ try:
         # one. This ensures that any variation in rendering time (due to a
         # changing number of sprites) is not visible to the user.
         pygame.display.flip()
-
-        # In case we missed some previous timer events, we don't want them to
-        # accumulate (maybe another program temporarily tied up the CPU).
-        pygame.event.clear(pygame.USEREVENT)
 
         # Bounce the ball around with simple edge of screen collision
         ballrect = ballrect.move(speed)
@@ -123,34 +110,29 @@ try:
         bg.fill(bgcolor)
         bg.blit(ball, ballrect)
 
-        # Smooth scale the internal screen surface to the real window surface
-        # while maintaining the aspect ratio of the internal surface. It seems
-        # the screen surface is automatically erased to black by each
-        # pygame.displa.flip() so we can save some time by not having to do it
-        # ourselves.
-        #
-        # NOTE: It is only possible to get a subsurface of the screen if the
-        # display mode is not hardware accelerated (according to Pygame docs).
-        fit = bgsize.fit(size)
-        pygame.transform.smoothscale(bg, fit.size, screen.subsurface(fit))
+        # Scale the internal screen surface to the real window surface.
+        # Since the scaling operation updates the entire screen surface, we
+        # don't have to call screen.fill()
+        pygame.transform.scale(bg, size.size, screen)
 
         # Calculate and accumulate the total elapsed time to render each frame
         renderTicks += pygame.time.get_ticks() - startTicks
 
         # Every second the average rendering time is calculated and displayed
         # in the window's title bar as an absolute time and a percentage out of
-        # the available time per frame. If the percentage goes over 100% we start
-        # dropping frames and the animation slows down.
+        # the available time per frame. If the percentage goes over 100% we
+        # start dropping frames and the animation slows down.
         frameCount += 1
-        if frameCount >= 1000 / delay:
+        if frameCount >= fps:
             average = float(renderTicks) / frameCount
-            percent = (average / delay) * 100
+            percent = (average * fps) / 10
             
             caption = "Speed Test: %.2fms (%2.1f%%)" % (average, percent)
             pygame.display.set_caption(caption)
 
             frameCount = 0
             renderTicks = 0
+
 
 # Calling sys.exit() raises a SystemExit eception. This keeps it from propagating
 # to the IDLE Python Shell window where it would get displayed otherwise.
