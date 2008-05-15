@@ -1,0 +1,97 @@
+; --------------------------------------------------------
+; Tile Studio Definition for use with Game-Game
+; --------------------------------------------------------
+; The generated file should be imported by Python
+
+#file <ProjectName>-mklevels.py
+##!/usr/bin/env python
+##Automatically generated module with Tile Studio; do not edit
+##
+##Run this script once to generate the .level ASCII files
+##currently used by the Pyglet prototype engine for Game-Game.
+##
+##The very first tile (index 0) in the tileset should be an
+##empty black square. This tile will be used by pyglet_engine
+##to display any "empty" areas on the map.
+##
+##Also note that it is not possible to re-import the ASCII map
+##back into Tile Studio, therefore you shouldn't edit the ASCII
+##by hand.
+
+def generate(tileset, mapname, data, width):
+    map = open(mapname + ".level", "w")
+    print >> map, tileset + ".png"
+
+    for i in xrange(len(data)):
+        tile = data[i][0]
+
+        if i % width == 0:
+            print >> map
+
+        # Report "empty" tiles as 0 instead of the -1 Tile Studio uses
+        if tile == -1:
+            print >> map, 0,
+        else:
+            print >> map, tile,
+
+    print >> map
+
+    for i in xrange(len(data)):
+        bounds = data[i][1]
+
+        if i % width == 0:
+            print >> map
+
+	# Diagonal edges print "/" or "\"
+        if bounds & 0x80:
+            if bounds & 0x01:
+                print >> map, "\\\\",
+            else:
+                print >> map, "/",
+
+        else:
+            # Any combination of horizontal and vertical edges print "+"
+            if bounds & 0x05 and bounds & 0x0A:
+                print >> map, "+",
+
+            # Either vertical edge print "|"
+            elif bounds & 0x0A:
+                print >> map, "|",
+
+            # Upper edge only (platform) print "_"
+            elif bounds & 0x05 == 0x01:
+                print >> map, "_",
+
+            # Lower edge only or upper and lower print "-"
+            elif bounds & 0x05:
+                print >> map, "-",
+
+            # If no collision bounds in tile then print "."
+            elif not bounds:
+                print >> map, ".",
+
+            # Either I screwed up or Tile Studio spewed garbage
+            else:
+                raise "Unknown tile bounds at index " + str(i)
+
+    map.close()
+    
+#tileset
+#map    
+
+tileset = "<TileSetIdentifier>"
+mapname = "<MapIdentifier>"
+width = <MapWidth>
+
+data = [
+#mapdata
+\n    (<TSMidTile>,<Bounds>),
+#end mapdata
+]
+
+generate(tileset, mapname, data, width)
+
+#end map
+#end tileset 
+
+#end file
