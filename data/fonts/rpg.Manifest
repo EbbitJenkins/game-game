@@ -2,7 +2,7 @@
 # know just what this Manifest is defining.
 [metadata]
 type = font
-name = Creator
+name = RPG
 
 # =====
 # The [stripmap] section defines the mapping from UTF-8 characters
