@@ -1,0 +1,107 @@
+# As in all Manifest files, the [metadata] section lets the engine
+# know just what this Manifest is defining.
+[metadata]
+type = font
+name = Creator
+
+# =====
+# The [stripmap] section defines the mapping from UTF-8 characters
+# to locations in the fontstrip. The right-hand side is the UTF-8
+# character to represent, and the left-hand side is the location
+# in the fontstrip (zero-indexed, as all good indices are).
+[stripmap]
+0 = A
+1 = B
+2 = C
+3 = D
+4 = E
+5 = F
+6 = G
+7 = H
+8 = I
+9 = J
+10 = K
+11 = L
+12 = M
+13 = N
+14 = O
+15 = P
+16 = Q
+17 = R
+18 = S
+19 = T
+20 = U
+21 = V
+22 = W
+23 = X
+24 = Y
+25 = Z
+26 = a
+27 = b
+28 = c
+29 = d
+30 = e
+31 = f
+32 = g
+33 = h
+34 = i
+35 = j
+36 = k
+37 = l
+38 = m
+39 = n
+40 = o
+41 = p
+42 = q
+43 = r
+44 = s
+45 = t
+46 = u
+47 = v
+48 = w
+49 = x
+50 = y
+51 = z
+52 = 1
+53 = 2
+54 = 3
+55 = 4
+56 = 5
+57 = 6
+58 = 7
+59 = 8
+60 = 9
+61 = 0
+62 = !
+63 = ?
+64 = #
+65 = (
+66 = )
+67 = "
+68 = '
+69 = .
+70 = ,
+71 = :
+72 = ;
+73 = +
+74 = -
+
+# Example UTF-8 entry:
+# 117 = ぁ
+
+# =====
+# The [charmap] section maps Unicode characters to other
+# characters given above.  This is useful for fonts (such
+# as Solar) that don't have a particular case, or for
+# interim solutions for "similar" characters.  There is
+# also a special entry, 'unknown,' used for mapping any
+# character that isn't represented in either the stripmap
+# or the charmap.
+[charmap]
+
+# The following is a synthetic example, but it works.
+Ç = C
+ç = c
+
+# Question marks are always good for unknown characters.
+unknown = ?
