@@ -1,4 +1,4 @@
-# See creator.Manifest for documentation on the font Manifest format.
+# See rpg.Manifest for documentation on the font Manifest format.
 [metadata]
 type = font
 name = Deathwake
