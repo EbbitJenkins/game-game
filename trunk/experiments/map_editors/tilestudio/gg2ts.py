@@ -1,20 +1,22 @@
 #!/usr/bin/env python
 
-import sys, struct, os
+import sys, struct, os, itertools
 
 def convert(filename):
     tileset_name, tile_str, coll_str = open(filename).read().split('\n\n')
     tiles = [s.split(' ') for s in tile_str.split('\n')]
 
-    print "Map size: %dx%d" % ( len(tiles[0]), len(tiles) )
+    width = len(tiles[0])
+    print "Map size: %dx%d" % (width, len(tiles))
 
     filename = os.path.splitext(filename)[0] + ".bin"
     print "Import map to middle tile layer as 8bit 0 based:", filename
     binfile = open(filename, "wb")
 
-    for row in tiles:
-        for col in row:
-            binfile.write(struct.pack("B", int(col)))
+    for row in tiles:        
+        # Tile number 0 in ASCII is an absent tile which is -1 in Tile Studio
+        row = itertools.imap(lambda x: int(x) if int(x) else -1, row)
+        binfile.write(struct.pack("%db" % width, *row))
 
     binfile.close()
 
