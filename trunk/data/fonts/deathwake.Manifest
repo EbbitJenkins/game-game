@@ -2,6 +2,7 @@
 [metadata]
 type = font
 name = Deathwake
+space_width = 5
 
 [stripmap]
 0 = A
@@ -90,5 +91,4 @@ name = Deathwake
 81 = £
 82 = #
 
-[charmap]
-unknown = ?
+unknown = 74
