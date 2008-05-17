@@ -28,11 +28,8 @@ def generate(tileset, mapname, data, width):
         if i % width == 0:
             print >> map
 
-        # Report "empty" tiles as 0 instead of the -1 Tile Studio uses
-        if tile == -1:
-            print >> map, 0,
-        else:
-            print >> map, tile,
+        # Shift all tile numbers by one to match 1 based numbers we use
+        print >> map, tile + 1,
 
     print >> map
 

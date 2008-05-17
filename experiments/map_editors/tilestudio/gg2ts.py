@@ -14,8 +14,11 @@ def convert(filename):
     binfile = open(filename, "wb")
 
     for row in tiles:        
-        # Tile number 0 in ASCII is an absent tile which is -1 in Tile Studio
-        row = itertools.imap(lambda x: int(x) if int(x) else -1, row)
+        # Tile number 0 in ASCII map represents an absent tile which is -1 in
+        # Tile Studio. Also, the tile numbers in the ASCII map are 1 based
+        # while Tile Studio is 0 based, so all the tile numbers are simply
+        # shifted over by one.
+        row = itertools.imap(lambda x: int(x) - 1, row)
         binfile.write(struct.pack("%db" % width, *row))
 
     binfile.close()
