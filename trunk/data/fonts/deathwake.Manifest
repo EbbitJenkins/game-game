@@ -3,7 +3,6 @@
 type = font
 file = deathwake.png
 name = Deathwake
-space_width = 5
 
 [stripmap]
 0 = A
@@ -92,4 +91,6 @@ space_width = 5
 81 = £
 82 = #
 
-unknown = 74
+[control]
+unknown_glyph = ?
+space_width = 5
