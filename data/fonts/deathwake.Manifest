@@ -1,6 +1,7 @@
 # See rpg.Manifest for documentation on the font Manifest format.
 [metadata]
 type = font
+file = deathwake.png
 name = Deathwake
 space_width = 5
 
