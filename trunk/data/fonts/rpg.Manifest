@@ -5,6 +5,10 @@
 # Unsurprisingly, the type of a font Manifest is 'font.'
 type = font
 
+# The 'file' is the filename.  This should generally match the
+# Manifest, but is not required.
+file = rpg.png
+
 # The name is a colloquial name, used in the engine when fonts are
 # picked for a given piece of text.
 name = RPG

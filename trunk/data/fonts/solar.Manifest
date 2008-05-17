@@ -1,6 +1,7 @@
 # See rpg.Manifest for documentation on the font Manifest format.
 [metadata]
 type = font
+file = solar.png
 name = Solar
 space_width = 7
 
