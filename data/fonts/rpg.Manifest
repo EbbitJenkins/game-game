@@ -1,5 +1,11 @@
+#
+# rpg.Manifest (plus comments)
+#
+
+#
 # As in all Manifest files, the [metadata] section lets the engine
 # know just what this Manifest is defining.
+#
 [metadata]
 
 # Unsurprisingly, the type of a font Manifest is 'font.'
@@ -13,19 +19,12 @@ file = rpg.png
 # picked for a given piece of text.
 name = RPG
 
-# Lastly, the width of a space is defined not by an entry in the
-# font itself, but in a number of pixels to use for spacing.  This
-# does /not/ include the single-pixel separation always used between
-# font characters.
-space_width = 4
-
+#
 # The [stripmap] section defines the mapping from UTF-8 characters
 # to locations in the fontstrip.  The left-hand side is the
 # (zero-indexed) location; the right-hand side is a space-separated
-# list of characters that a given location represents.  In addition
-# to the integer locations, the special entry 'unknown' gives the
-# stripmap location for the character to use when no valid entry
-# for a given UTF-8 character is found.
+# list of characters that a given location represents.
+#
 [stripmap]
 0 = A
 1 = B
@@ -103,8 +102,22 @@ space_width = 4
 73 = +
 74 = -
 
-# Question marks are always good for unknown characters.
-unknown = 63
-
 # Example UTF-8 entry:
 # 117 = ぁ
+
+#
+# The [control] section contains a few entries that are meant for
+# controlling the behaviour of the font.
+#
+[control]
+
+# If a glyph is requested that isn't part of the stripmap, we need
+# a default character.  that's controlled by the unknown_glyph
+# option in this section; it should be set to the stripmap character
+# to use.  When in doubt, use the question mark.
+unknown_glyph = ?
+
+# Spaces don't have a dedicated entry in the fontstrip.  Instead, we
+# set the width (in pixels) via space_width.  This does /not/ include
+# the mandatory one-pixel space between all characters.
+space_width = 4

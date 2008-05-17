@@ -3,7 +3,6 @@
 type = font
 file = solar.png
 name = Solar
-space_width = 7
 
 [stripmap]
 0 = A a
@@ -53,4 +52,6 @@ space_width = 7
 78 = -
 79 = ©
 
-unknown = 76
+[control]
+unknown_glyph = ?
+space_width = 7
