@@ -1,5 +1,7 @@
 #/usr/bin/env python
 
+import sys
+import random
 import pyglet                   # pyglet's sub-parts are lazy-loaded when called
 from pyglet.gl import *         # Quick access to gl functions
 from pyglet.window import key   # Quick access to key codes
@@ -17,8 +19,7 @@ class Map:
         """
 
         self.image = image              # Background image created from tiles
-        self.bounds_x = bounds[0]       # List of x, y tuples of x bounds
-        self.bounds_y = bounds[1]       # List of x, y tuples of y bounds
+        self.bounds = bounds            # 2D list of boundary tile types
         self.sprites = []               # Sprites on map
         self.width = self.image.width   # Shortcut
         self.height = self.image.height # Shortcut
@@ -39,24 +40,37 @@ class Map:
         # TODO: Seems kind of dirty to pass cam_x and cam_y two levels deep
 
         for sprite in self.sprites:
-            sprite.update(cam_x, cam_y, self.bounds_x, self.bounds_y)
+            sprite.update(cam_x, cam_y, self.bounds)
 
 class Sprite:
     def __init__(self, x, y, weight):
         self.x, self.y = x, y
         self.dx, self.dy = 0, 0
         self.weight = weight    # For use with gravity
-        self.image = pyglet.image.load('player.png')
+        self.images = self.load_images()
+        self.image = self.images['stand_right']
         self.width, self.height = self.image.width, self.image.height
+        self.falling = False
+        self.start_gravity()
 
         # Is this sprite in the camera's view or not
         self.active = False 
 
-        # Out of bounds?
-        self.bound = {'up':False, 'down':False, 'left':False, 'right':False}
+    def load_images(self):
+        images = {}
+
+        images['stand_left'] = pyglet.image.load('marek-left.png')
+        images['stand_right'] = pyglet.image.load('marek-right.png')
+
+        return images
 
     def start_running(self, dx):
         self.dx = dx
+
+        if dx > 0:
+            self.image = self.images['stand_right']
+        elif dx < 0:
+            self.image = self.images['stand_left']
 
     def stop_running(self):
         self.dx = 0
@@ -64,60 +78,53 @@ class Sprite:
     def gravity(self):
         self.y -= self.weight
 
+    def start_gravity(self):
+        self.falling = True
+        self.dy = -self.weight
 
-    def update(self, cam_x, cam_y, bounds_x, bounds_y):
+    def stop_gravity(self):
+        self.falling = False
+        self.dy = 0
+
+    def reverse_gravity(self):
+        self.y += self.weight
+
+    def update(self, cam_x, cam_y, bounds):
         """
         Check the sprite's boundaries with the map's boundary data and update 
         the sprite's position on the map and blit it according to the camera's 
         relation with the map.
         """
+        
+        # For readability, whether or not the sprite is bound in a direction
 
-        # TODO: This method could probably be a lot more efficient
+        # Since this sprite is 1x2 tiles, we need 4 x bounds
+        #    n
+        # nw P ne
+        # sw P se
+        #    s
 
-        if not (self.x, self.y) in bounds_x:
-            # Has not reached a vertical boundary
-            self.x += self.dx
-            self.bound['left'], self.bound['right'] = False, False
-        else:
-            if self.dx < 0:
-                # Found a left boundary
-                self.bound['left'] = True
-            elif self.dx > 0:
-                # Found a right boundary
-                self.bound['right'] = True
+        bound_n  = bounds[(self.y + self.height + 17) / 16][self.x / 16] == '='
+        bound_s  = bounds[(self.y - 1) / 16][self.x / 16] == '='
+        bound_se = bounds[self.y / 16][(self.x + self.width + 1) / 16] == '='
+        bound_sw = bounds[self.y / 16][(self.x - 1) / 16] == '='
+        bound_ne = bounds[(self.y + 17)/16][(self.x + 1 + self.width)/16] == '='
+        bound_nw = bounds[(self.y + 17) / 16][(self.x - 1) / 16] == '='
 
-        if not (self.x, self.y) in bounds_y:
-            # Sprite has not reached a horizontal boundary
-            self.y += self.dy
-            self.gravity()
-            self.bound['down'], self.bound['up'] = False, False
-        else:
-            if self.dy < 0:
-                # Found a lower boundary
-                self.bound['down'] = True
-            elif self.dy > 0:
-                # Found an upper boundary
-                self.bound['up'] = True
+        # Might as well combine x directions
+        bound_e = bound_se or bound_ne
+        bound_w = bound_nw or bound_sw
 
-        if self.dx < 0 and self.bound['right']:
-            # At a right boundary but moving left, so it's ok
+        # If the sprite is not bound in the direction it wants to go in, let it
+        if (self.dx > 0 and not bound_e) or (self.dx < 0 and not bound_w):
             self.x += self.dx
 
-        if self.dx > 0 and self.bound['left']:
-            # At a left boundary but moving right, so it's ok
-            self.x += self.dx
-
-        if self.dy < 0 and self.bound['up']:
-            # At an upper boundary but moving down, so it's ok
-            self.y += self.dy
-
-        if self.dy > 0 and self.bound['down']:
-            # At a lower boundary but moving up, so it's ok
+        if (self.dy > 0 and not bound_n) or (self.dy < 0 and not bound_s):
             self.y += self.dy
 
         # Camera's x and y must be subtracted or the sprite would be moving at
         # double speed and out of the center of the camera's view.
-        self.image.blit(self.x - cam_x - self.width / 2, self.y - cam_y)
+        self.image.blit(self.x - cam_x, self.y - cam_y)
 
 class Camera:
     """
@@ -173,7 +180,7 @@ class Camera:
         # TODO: Untested
 
         for sprite in map.sprites:
-            sprite.active = True if collide(self, sprite) else False
+            sprite.active = bool(collide(self, sprite))
 
     def update(self):
         """
@@ -191,8 +198,8 @@ class Camera:
         self.map.update(self.x, self.y)
 
         # Update the sprite this camera is focusing on
-        self.sprite.update(self.x, self.y, self.map.bounds_x, self.map.bounds_y)
-
+        self.sprite.update(self.x, self.y, self.map.bounds)
+ 
 def collide(a, b):
     if a.y + a.height < b.y:
         return False
@@ -213,6 +220,8 @@ def process_tile_data(grid, layout):
     are blitted one by one onto the map image.
     """
 
+    layout.reverse()
+
     width = grid[0].width * len(layout[0])
     height = grid[0].height * len(layout)
 
@@ -228,32 +237,22 @@ def process_tile_data(grid, layout):
 
     return map_image
 
-def process_boundary_data(data, t_width, t_height):
+def process_bounds(data, tile_w, tile_h):
     """
-    Parses the list of lists that represents the boundaries of the map and
-    builds lists of pixes sprites can't cross.
-
-    NOTE: This is probably a horrible way to do this.
+    In the initial implementation of this engine, this function made one-pixel
+    barriers on the map that sprites could not cross. That was scrapped for
+    creating horizontal and vertical rectangles that the sprite would collide
+    with to create boundaries. In this latest implementation I am looking
+    directly at the ASCII in the input file, so all I need to do is reverse
+    the data so I can treat it as (y, x) coords. I don't like that its (y, x)
+    rather than (x, y). Also we will probably want to make boundary data a 
+    list of tile subclasses that you can access by (x, y) once we need to do
+    more with them.
     """
-    v_bounds = []
-    h_bounds = []
 
-    i, j = 0, 0
-    r = range(t_width) # THOSE LIST COMPREHENSIONS WILL STAY ONE LINE
+    data.reverse()
 
-    for y in data:
-        for x in y:
-            if x == '-' or x == '+':
-                h_bounds += [(i * t_width + v, j * t_height) for v in r]
-
-            if x == '|' or x == '+':
-                v_bounds += [(i * t_width + v, j * t_height) for v in r]
-
-            i += 1
-        i = 0
-        j += 1
-
-    return v_bounds, h_bounds
+    return data
 
 def load_map(filename):
     """
@@ -268,21 +267,25 @@ def load_map(filename):
     tile_grid = pyglet.image.ImageGrid(tileset_image, 1, 8)
     tile_layout = [s.split(' ') for s in tile_str.split('\n')]
     map_data = [s.split(' ') for s in coll_str.split('\n')]
-    tile_layout.reverse()
-    map_data.reverse()
+    map_data = map_data[:-1] if map_data[-1] == [''] else map_data
     
     map_image = process_tile_data(tile_grid, tile_layout)
 
     width, height = tile_grid[0].width, tile_grid[0].height
-    boundary_data = process_boundary_data(map_data, width, height)
+    bounds = process_bounds(map_data, width, height)
 
-    return Map(map_image, boundary_data)
+    return Map(map_image, bounds)
 
 if __name__ == '__main__':
     window = pyglet.window.Window()
 
-    map = load_map('1.level')
-    player = Sprite(320, 400, 2)
+    try:
+        map = load_map(sys.argv[1])
+    except IndexError:
+        print 'Please supply a level file (1.level or test.level)'
+        exit()
+
+    player = Sprite(320, 390, 2)
     camera = Camera(map, player, window.width, window.height)
     
     speed = 4
