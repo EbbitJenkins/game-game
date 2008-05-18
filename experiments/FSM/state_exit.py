@@ -1,6 +1,7 @@
 import state
 import sys
 
+#EXIT state is for leaving the game all together, ends the process
 class exit:
     "exit"
     def timer(self, dt):
