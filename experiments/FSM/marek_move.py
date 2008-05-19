@@ -37,7 +37,6 @@ class STATE_idle:
             else:
                 if fsm.marek.dy == 0:
                     #TODO: run idle animation
-                    #if dy != 0, he is falling or something - not idle
                     pass
             if fsm.marek.dy != 0:
                 if fsm.marek.dy < 0:
@@ -64,10 +63,13 @@ class STATE_jump:
     "jump"
     def timer(self, dt):
         next_state = self
-        jump.timer = jump.timer + dt
-        if jump.timer < fsm.marek.jump_height and fsm.marek.move_state.action.__doc__ == "jump":
+        self.timer = self.timer + dt
+        self.limit = self.limit + dt
+        if self.timer < fsm.marek.jump_height and fsm.marek.move_state.action.__doc__ == "jump":
             #jump_height is seconds that marek can jump for
-            fsm.marek.dy = fsm.marek.dy - fsm.marek.dy/15
+            if self.limit > (fsm.marek.jump_height * .1):
+                self.limit = 0
+                fsm.marek.dy = fsm.marek.dy - fsm.marek.dy/15   #ascent gets slower as you go up                
             fsm.marek.move(0, fsm.marek.dy)
             if fsm.marek.dx != 0:
                 fsm.marek.move(fsm.marek.dx, 0)
@@ -79,7 +81,8 @@ class STATE_jump:
         return next_state
          
     def enter(self):
-        jump.timer = 0  #keeps track of how long we have been in jump state
+        self.timer = 0  #keeps track of how long we have been in jump state
+        self.limit = 0  #used to control how quickly ascent slows
     def leave(self):
         pass
         
