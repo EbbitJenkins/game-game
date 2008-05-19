@@ -66,7 +66,8 @@ pygame.init()
 # efficient to pre-scale and blit at the full resolution, even when blitting
 # overlapping areas, then it would be to blit at 320x240 to an intermediate
 # surface and then scale the entire display in realtime. This routine also
-# reindexes the images palette indices with Surface.convert().
+# reindexes the images palette indices of the loaded image with
+# Surface.convert().
 def loadImage(filename):
     image = pygame.image.load(filename).convert()
     width, height = image.get_size()
@@ -90,28 +91,44 @@ def randomRect(rect):
     y = random.randrange(size.height - rect.height)
     return rect.move(x, y)
 
-# Blit a simple tiled background on the screen surface to better simulate the
-# rendering load of a real game engine. The offset tuple shifts the entire
-# background by that many pixels to create a scrolling effect.
-def drawBackground(offset):
+# It's more efficient to pre-render the entire scrolling tile map into an
+# intermediate surface and then display portions of it to the screen with a
+# single blit(), rather than redrawing the background from individual tiles
+# for each frame. Basically a memory vs speed tradeoff. Returns the newly
+# created surface.
+def initBackground():
     # Calculate the number of tiles that must be drawn to fully cover the
-    # background. If offset is not (0,0) we actually need one more tile since
-    # the opposite edges of the window are each displaying partial tile images.
-    tileColumns = size.width / tile.get_rect().width + 1
-    tileRows = size.height / tile.get_rect().height + 1
+    # window. To draw partial tile images at the edges of the window, we
+    # actually need one more tile since edges of the window are each displaying
+    # a partial tile image.
+    width, height = tile.get_rect().width, tile.get_rect().height
+    tileColumns = size.width / width + 1
+    tileRows = size.height / height + 1
 
+    # Create the intermediate surface. Note that the call to convert() is
+    # necessary to initialize this surface's palette to match the palette in use
+    # by the screen surface.
+    bg = pygame.Surface((size.width + width, size.height + height)).convert()
+
+    # Draw the tiled background to the intermediate surface
+    origin = tile.get_rect()
+    for row in xrange(tileRows):
+        for col in xrange(tileColumns):
+            dest = origin.move(width * col, height * row)
+            bg.blit(tile, dest)
+
+    return bg
+
+# Blit the global "bg" surface to the window, offsetting the upper left corner
+# of "bg" by the specified pixel amount. This offset allows for a smooth
+# scrolling background.
+def drawBackground(offset):    
     # To draw partial tile images at the upper and left edges of the window, we
     # actually have to start drawing slightly outside of the window. Hence, the
     # subtraction of the tile width and height.
     width, height = tile.get_rect().width, tile.get_rect().height
     offset = (offset[0] - width, offset[0] - height)
-
-    # Draw the tiled background shifted over by "offset" pixels
-    origin = tile.get_rect().move(offset)
-    for row in xrange(tileRows):
-        for col in xrange(tileColumns):
-            dest = origin.move(width * col, height * row)
-            screen.blit(tile, dest)
+    screen.blit(bg, bg.get_rect().move(offset))
 
 # Update position of all the sprites and the scrolling background. Also perform
 # some rudimentary edge of window collision detection on each sprite
@@ -129,9 +146,9 @@ def onUpdate():
         if rect.top < 0 or rect.bottom > size.height:
             speed[1] = -speed[1]
 
-    # Update the camera's position using the current background scrolling speed
+    # Update the camera's position using the current background scrolling speed.
     # By making the offset "wrap around" under modulo arithmetic, we can get a
-    # continuously repeating background pattern.
+    # continuously scrolling background pattern.
     width, height = tile.get_rect().width, tile.get_rect().height
     camera = (camera[0] + scroll[0]) % width, (camera[1] + scroll[1]) % height
 
@@ -158,8 +175,8 @@ try:
     screen = pygame.display.set_mode(winsize, 0, 8)
     size = screen.get_rect()
 
-    # Load the combined palette for all images into the display and intermediate
-    # surfaces. All further Surface.convert() calls on other surface images will
+    # Load the combined palette for all images into the screen surface.
+    # All further Surface.convert() calls on other surface images will
     # remap the color indices to match the loaded palette as long as both
     # palette's have identical RGB triples somewhere. Note that we don't call
     # convert() on the palette image itself or we'd loose its color information.
@@ -168,6 +185,9 @@ try:
     # Load all image resources
     tile = loadImage("tile.png")
     ball = loadImage("ball.png")
+
+    # Pre-render the background tile map
+    bg = initBackground()
 
     # Setup a random scrolling speed for the background
     scroll = randomSpeed(2)
@@ -226,7 +246,7 @@ try:
             frameCount = 0
             renderTicks = 0
 
-# Calling sys.exit() raises a SystemExit eception. This keeps it from propagating
+# Calling sys.exit() raises a SystemExit exception. This keeps it from propagating
 # to the IDLE Python Shell window where it would get displayed otherwise.
 except SystemExit:
     pygame.quit()
