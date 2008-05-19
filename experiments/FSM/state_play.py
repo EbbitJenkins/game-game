@@ -3,7 +3,7 @@ import fsm
 
 #PLAY state is for 'normal' gameplay, such as running around causing mayhem
 #goes to DEATH when the marek runs out of lives
-class play:
+class STATE_play:
     "play"
     def timer(self, dt):
         next_state = self
@@ -14,7 +14,7 @@ class play:
             fsm.marek.do_timer(dt) #handles marek stuff, including its own FSM
         else:
             #marek is in the DEATH state and has no lives left, thus game over
-            next_state = state.death()
+            next_state = state.STATE_death()
         return next_state
     def enter(self):
         print "enter play"

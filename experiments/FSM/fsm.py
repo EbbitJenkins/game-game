@@ -18,7 +18,7 @@ def do_state(curr_state, next_state):
     
 if __name__ == '__main__':
     #initialize the current state
-    curr_state = state.null()
+    curr_state = state.STATE_null()
     while True:
         #timer(dt) returns either 'self' or a new state
         #dt should really be the time since this was last run, in seconds
