@@ -2,8 +2,8 @@ import fsm
 
 class move:
     def __init__(self):
-        self.curr_state = null()
-        self.action = idle()
+        self.curr_state = STATE_null()
+        self.action = STATE_idle()
                
     def do_state(self, next_state):
         if not (next_state == self.curr_state):
@@ -14,10 +14,10 @@ class move:
             self.curr_state.enter()
         return self.curr_state
 
-class null:
+class STATE_null:
     "null"
     def timer(self, dt):
-        return idle()
+        return STATE_idle()
     def enter(self):
         print "entering marek.move_state.null"
         pass
@@ -25,7 +25,7 @@ class null:
         print "leaving marek.move_state.null"
         pass
 
-class idle:
+class STATE_idle:
     "idle"
     def timer(self, dt):
         next_state = self
@@ -60,7 +60,7 @@ class idle:
         print "leaving marek.move_state.idle"
         pass
     
-class jump:
+class STATE_jump:
     "jump"
     def timer(self, dt):
         next_state = self

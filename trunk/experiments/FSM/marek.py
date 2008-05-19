@@ -6,7 +6,7 @@ import fsm
 #other sprite objects could be very similar to this
 class marek:
     def __init__(self, x, y):
-        self.curr_state = null()    #initializes the state for the marek's FSM
+        self.curr_state = STATE_null()    #initializes the state for the marek's FSM
         self.move_state = marek_move.move()
         self.moves = moves()    #used to access list of move states
         self.hp = 100           #marek's current hp
@@ -38,12 +38,19 @@ class marek:
         self.x = self.x + (dx * self.run_speed)
         self.y = self.y + (dy * self.run_speed)
     
-
+#Used to access move states
+class moves:
+    def STATE_null(self):
+        return marek_move.STATE_null()
+    def STATE_idle(self):
+        return marek_move.STATE_idle()
+    def STATE_jump(self):
+        return marek_move.STATE_jump()
 #NULL is an initial state, goes to NEW
-class null:
+class STATE_null:
     "null"
     def timer(self, dt):
-        next_state = new()
+        next_state = STATE_new()
         return next_state
     def enter(self):
         print "enter marek.null"
@@ -52,13 +59,13 @@ class null:
 
 #IDLE runs while nothing else is going on in this FSM
 #In theory, there will be 3-4 more FSM being run from within idle.timer, controlling movement, attacks, collision and (in the case of NPC) AI
-class idle:
+class STATE_idle:
     "idle"
     def timer(self, dt):
         next_state = self
         if fsm.marek.hp == 0:
             #since the marek has no more hp, go to death state
-            next_state = death()
+            next_state = STATE_death()
         if fsm.marek.hp > 0:
             fsm.marek.move_state.do_state(fsm.marek.move_state.curr_state.timer(dt))
             fsm.marek.hp = fsm.marek.hp - 25
@@ -70,12 +77,12 @@ class idle:
     
 #NEW initializes the marek object to default conditions, such as when you come back from death
 #goes to IDLE
-class new:
+class STATE_new:
     "new"
     def timer(self, dt):
-        next_state = idle()
+        next_state = STATE_idle()
         fsm.marek.hp = fsm.marek.hp_max
-        fsm.marek.move_state.action = fsm.marek.moves.idle()
+        fsm.marek.move_state.action = fsm.marek.moves.STATE_idle()
         return next_state
     def enter(self):
         print "enter marek.new"
@@ -83,10 +90,10 @@ class new:
         print "leave marek.new"
 
 #DEATH removes a life and goes back to NEW
-class death:
+class STATE_death:
     "death"
     def timer(self, dt):
-        next_state = new()
+        next_state = STATE_new()
         return next_state
     def enter(self):
         print "enter marek.death"
@@ -95,11 +102,3 @@ class death:
     def leave(self):
         print "leave marek.death"
         
-#Used to access move states
-class moves:
-    def null(self):
-        return marek_move.null()
-    def idle(self):
-        return marek_move.idle()
-    def jump(self):
-        return marek_move.jump()

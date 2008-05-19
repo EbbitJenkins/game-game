@@ -6,31 +6,31 @@ import state_death
 import state_load
 
 #makes things syntatically cleaner
-def intro():
-    return state_intro.intro()
+def STATE_intro():
+    return state_intro.STATE_intro()
     
-def play():
-    return state_play.play()
+def STATE_play():
+    return state_play.STATE_play()
 
-def exit():
-    return state_exit.exit()
+def STATE_exit():
+    return state_exit.STATE_exit()
 
-def menu():
-    return state_menu.menu()
+def STATE_menu():
+    return state_menu.STATE_menu()
 
-def death():
-    return state_death.death()
+def STATE_death():
+    return state_death.STATE_death()
     
-def load():
-    return state_load.load()
+def STATE_load():
+    return state_load.STATE_load()
     
 
 #NULL is an initial state, goes to INTRO
-class null:
+class STATE_null:
     "null"  #sort of hacky way to compare states
     def timer(self, dt):
         #this code is run the cycle after 'enter' is called and every subsequent cycle until it returns a different state (at which point leave is called)
-        next_state = intro()
+        next_state = STATE_intro()
         #goes to intro
         return next_state
     def enter(self):

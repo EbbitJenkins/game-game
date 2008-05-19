@@ -1,10 +1,10 @@
 import state
 
 #DEATH state is for game over, goes back to the menu
-class death:
+class STATE_death:
     "death"
     def timer(self, dt):
-        next_state = state.menu()
+        next_state = state.STATE_menu()
         return next_state
     def enter(self):
         print "enter death"
