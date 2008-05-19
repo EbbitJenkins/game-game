@@ -1,5 +1,5 @@
 import state
-import player
+import marek
 import fsm
 
 #LOAD state is for loading a map, as well as everything involved with the map.  Goes to PLAY
@@ -14,5 +14,5 @@ class load:
     def leave(self):
         print "leave load"
     def init(self):
-        fsm.player = player.player(2, 5)    #initialize the player object 
+        fsm.marek = marek.marek(2, 5)    #initialize the marek object 
     

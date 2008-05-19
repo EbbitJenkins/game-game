@@ -2,7 +2,7 @@
 
 import state
 
-global player   #because everything needs access to it
+global marek   #because everything needs access to it
 
 def do_state(curr_state, next_state):
     #check if there is a new state
