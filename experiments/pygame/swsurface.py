@@ -242,6 +242,7 @@ try:
             
             data = (size.width, size.height, average, percent, timer.get_fps())
             pygame.display.set_caption(caption % data)
+            print(caption % data)
 
             frameCount = 0
             renderTicks = 0
