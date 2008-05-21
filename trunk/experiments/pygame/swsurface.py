@@ -71,9 +71,17 @@ pygame.init()
 def loadImage(filename):
     image = pygame.image.load(filename).convert()
     width, height = image.get_size()
-    newwidth, newheight = int(width * widthRatio), int(height * heightRatio)
     
-    return pygame.transform.scale(image, (newwidth, newheight))
+    newwidth, newheight = int(width * widthRatio), int(height * heightRatio)
+    newimage = pygame.transform.scale(image, (newwidth, newheight))
+
+    # Enabling run length encoding of the color key transparency map on a
+    # SWSURFACE will slightly increase the blit speed when using this surface
+    # as a blit source. The more transparent area that an image has, the more
+    # pronounced the speed up will be.
+    newimage.set_colorkey(newimage.get_colorkey(), pygame.RLEACCEL)
+    
+    return newimage
 
 # Return random [x, y] list that can be used as a sprite/camera movement
 # speed. The returned x and y values are in the range of "-speed" to "speed",
@@ -236,7 +244,7 @@ try:
         # the available time per frame. If the percentage goes over 100% we
         # start dropping frames and the animation slows down.
         frameCount += 1
-        if frameCount >= timer.get_fps():
+        if frameCount >= fps:
             average = float(renderTicks) / frameCount
             percent = (average * timer.get_fps()) / 10
             
