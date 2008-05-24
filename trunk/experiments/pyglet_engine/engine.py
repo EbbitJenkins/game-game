@@ -347,7 +347,7 @@ if __name__ == '__main__':
     def on_key_press(symbol, modifiers):
         if symbol in dirs.keys():
             player.start_running(dirs[symbol])
-        elif symbol is key.SPACE:
+        elif symbol == key.SPACE:
             player.start_jumping()
 
     @window.event
