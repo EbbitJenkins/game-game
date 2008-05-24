@@ -1,7 +1,7 @@
 #/usr/bin/env python
 
-import sys
-import random
+import sys                      # I need command line args
+import random                   # For debug
 import pyglet                   # pyglet's sub-parts are lazy-loaded when called
 from pyglet.gl import *         # Quick access to gl functions
 from pyglet.window import key   # Quick access to key codes
@@ -13,13 +13,15 @@ class Map:
     move.
     """
 
-    def __init__(self, image, bounds):
+    def __init__(self, image, bounds, win_w, win_h):
         """
         Maps should be created with the load_map helper function.
         """
 
         self.image = image              # Background image created from tiles
         self.bounds = bounds            # 2D list of boundary tile types
+        self.win_w = win_w              # Window width TODO: DIRTY?
+        self.win_h = win_h              # Window height TODO: DIRTY?
         self.sprites = []               # Sprites on map
         self.width = self.image.width   # Shortcut
         self.height = self.image.height # Shortcut
@@ -50,7 +52,8 @@ class Sprite:
         self.images = self.load_images()
         self.image = self.images['stand_right']
         self.width, self.height = self.image.width, self.image.height
-        self.falling = False
+        self.jumping = False
+        self.jump_length = 16
         self.start_gravity()
 
         # Is this sprite in the camera's view or not
@@ -75,19 +78,42 @@ class Sprite:
     def stop_running(self):
         self.dx = 0
 
-    def gravity(self):
-        self.y -= self.weight
+    # TODO: Probably shouldn't have to stop gravity here?
+    def start_jumping(self):
+        """
+        Reset jump timer, stop gravity, and set jumping to true 
+        """
+
+        tmp = range(1, self.jump_length)
+        tmp.reverse()
+        tmp2 = [-x for x in range(1, self.jump_length)]
+        self.jump_timer = iter(tmp + tmp2)
+        self.stop_gravity()
+        self.jumping = True
+
+    def continue_jump(self):
+        """
+        Called when sprite is updated to change dy or stop jumping
+        """
+
+        try:
+            self.dy = self.jump_timer.next() / 2
+        except StopIteration:
+            self.stop_jumping()
+
+    def stop_jumping(self):
+        """
+        End jump, restart gravity
+        """
+
+        self.jumping = False 
+        self.start_gravity()
 
     def start_gravity(self):
-        self.falling = True
         self.dy = -self.weight
 
     def stop_gravity(self):
-        self.falling = False
         self.dy = 0
-
-    def reverse_gravity(self):
-        self.y += self.weight
 
     def update(self, cam_x, cam_y, bounds):
         """
@@ -95,6 +121,10 @@ class Sprite:
         the sprite's position on the map and blit it according to the camera's 
         relation with the map.
         """
+
+        # Handle jumping
+        if self.jumping:
+            self.continue_jump()
         
         # For readability, whether or not the sprite is bound in a direction
 
@@ -104,12 +134,14 @@ class Sprite:
         # sw P se
         #    s
 
-        bound_n  = bounds[(self.y + self.height + 17) / 16][self.x / 16] == '='
-        bound_s  = bounds[(self.y - 1) / 16][self.x / 16] == '='
-        bound_se = bounds[self.y / 16][(self.x + self.width + 1) / 16] == '='
-        bound_sw = bounds[self.y / 16][(self.x - 1) / 16] == '='
-        bound_ne = bounds[(self.y + 17)/16][(self.x + 1 + self.width)/16] == '='
-        bound_nw = bounds[(self.y + 17) / 16][(self.x - 1) / 16] == '='
+        w, h = tile_w, tile_h
+
+        bound_n  = bounds[(self.y + self.height + 1) / h][self.x / w] == '='
+        bound_s  = bounds[(self.y - 1) / h][self.x / w] == '='
+        bound_se = bounds[self.y / h][(self.x + self.width + 1) / w] == '='
+        bound_sw = bounds[self.y / h][(self.x - 1) / w] == '='
+        bound_ne = bounds[(self.y + h+1)/h][(self.x + 1 + self.width)/w] == '='
+        bound_nw = bounds[(self.y + h + 1) / h][(self.x - 1) / w] == '='
 
         # Might as well combine x directions
         bound_e = bound_se or bound_ne
@@ -230,7 +262,7 @@ def process_tile_data(grid, layout):
 
     for y in layout:
         for x in y:
-            map_image.blit_into(grid[int(x) - 1], i * 16, j * 16, 0)
+            map_image.blit_into(grid[int(x) - 1], i * tile_w, j * tile_h, 0)
             i += 1
         i = 0
         j += 1
@@ -256,36 +288,49 @@ def process_bounds(data, tile_w, tile_h):
 
 def load_map(filename):
     """
-    Parse a level file into meaningful data. See 1.level for format. 
+    Parse a level file into meaningful data. See *.level for format. 
 
     NOTE: This format is what an editor should output, not a human.
           ...Unless you really dislike that human.
     """
 
-    tileset_name, tile_str, coll_str = open(filename).read().split('\n\n')
+    global tile_w, tile_h
+
+    # Read metadata, tile_layer, and boundary_layer section of map file
+    meta, tile_str, coll_str = open(filename).read().split('\n\n')
+
+    # Split metadata into meaningful parts
+    tileset_name, tile_w, tile_h, win_w, win_h = meta.split(' ')
+    tile_w, tile_h = int(tile_w), int(tile_h)
+
+    # Load tileset image and derive rows/cols amounts for imageGrid
     tileset_image = pyglet.image.load(tileset_name)
-    tile_grid = pyglet.image.ImageGrid(tileset_image, 1, 8)
+    rows, cols = tileset_image.height / tile_w, tileset_image.width / tile_h
+    tile_grid = pyglet.image.ImageGrid(tileset_image, rows, cols)
+
+    # Create a map image from tile data
     tile_layout = [s.split(' ') for s in tile_str.split('\n')]
     map_data = [s.split(' ') for s in coll_str.split('\n')]
     map_data = map_data[:-1] if map_data[-1] == [''] else map_data
-    
     map_image = process_tile_data(tile_grid, tile_layout)
 
-    width, height = tile_grid[0].width, tile_grid[0].height
-    bounds = process_bounds(map_data, width, height)
+    # Create meaningful bounds data from ascii grid
+    bounds = process_bounds(map_data, tile_w, tile_h)
 
-    return Map(map_image, bounds)
+    return Map(map_image, bounds, int(win_w), int(win_h))
 
 if __name__ == '__main__':
-    window = pyglet.window.Window()
+    tile_w, tile_h = None, None
 
+    # Get map arg
     try:
         map = load_map(sys.argv[1])
     except IndexError:
-        print 'Please supply a level file (1.level or test.level)'
+        print 'Please supply a level file (big1.level, big2.level, small.level)'
         exit()
 
-    player = Sprite(320, 390, 2)
+    window = pyglet.window.Window(width=map.win_w, height=map.win_h)
+    player = Sprite(160, 120, 4)
     camera = Camera(map, player, window.width, window.height)
     
     speed = 4
@@ -302,6 +347,8 @@ if __name__ == '__main__':
     def on_key_press(symbol, modifiers):
         if symbol in dirs.keys():
             player.start_running(dirs[symbol])
+        elif symbol is key.SPACE:
+            player.start_jumping()
 
     @window.event
     def on_key_release(symbol, modifiers):
