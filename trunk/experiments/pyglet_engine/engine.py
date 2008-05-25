@@ -51,9 +51,11 @@ class Sprite:
         self.weight = weight    # For use with gravity
         self.images = self.load_images()
         self.image = self.images['stand_right']
+        self.facing = 1 # TODO: Doc
         self.width, self.height = self.image.width, self.image.height
         self.jumping = False
         self.jump_length = 16
+        self.bullets = []
         self.start_gravity()
 
         # Is this sprite in the camera's view or not
@@ -67,13 +69,18 @@ class Sprite:
 
         return images
 
+    def shoot(self):
+        self.bullets.append(Bullet(self.x, self.y + 13, self.facing))
+
     def start_running(self, dx):
         self.dx = dx
 
         if dx > 0:
             self.image = self.images['stand_right']
+            self.facing = 1
         elif dx < 0:
             self.image = self.images['stand_left']
+            self.facing = -1
 
     def stop_running(self):
         self.dx = 0
@@ -147,6 +154,10 @@ class Sprite:
         bound_e = bound_se or bound_ne
         bound_w = bound_nw or bound_sw
 
+        # Prevents getting stuck in lower tile after jump
+        if bound_s and self.y % tile_h:
+            self.y += 16 - self.y % 16
+
         # If the sprite is not bound in the direction it wants to go in, let it
         if (self.dx > 0 and not bound_e) or (self.dx < 0 and not bound_w):
             self.x += self.dx
@@ -154,8 +165,31 @@ class Sprite:
         if (self.dy > 0 and not bound_n) or (self.dy < 0 and not bound_s):
             self.y += self.dy
 
+        # Update bullets
+        for bullet in self.bullets:
+            bullet.update(cam_x, cam_y)
+
+            if bullet.timer > camera.width:
+                self.bullets.remove(bullet)
+
         # Camera's x and y must be subtracted or the sprite would be moving at
         # double speed and out of the center of the camera's view.
+        self.image.blit(self.x - cam_x, self.y - cam_y)
+
+class Bullet:
+    def __init__(self, x, y, dir):
+        self.x, self.y = x, y
+        self.dx, self.dy = dir * 8, 0
+        self.timer = 0
+        self.image = pyglet.image.load('bullet.png').get_texture()
+
+        if dir < 0:
+            self.x += 10
+            self.image = self.image.get_transform(flip_x=True)
+    
+    def update(self, cam_x, cam_y):
+        self.x, self.y = self.x + self.dx, self.y + self.dy
+        self.timer += abs(self.dx)
         self.image.blit(self.x - cam_x, self.y - cam_y)
 
 class Camera:
@@ -347,8 +381,10 @@ if __name__ == '__main__':
     def on_key_press(symbol, modifiers):
         if symbol in dirs.keys():
             player.start_running(dirs[symbol])
-        elif symbol == key.SPACE:
+        elif symbol == key.SPACE or symbol == key.Z:
             player.start_jumping()
+        elif symbol == key.X:
+            player.shoot()
 
     @window.event
     def on_key_release(symbol, modifiers):
