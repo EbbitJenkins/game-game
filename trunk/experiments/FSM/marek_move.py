@@ -1,4 +1,4 @@
-import fsm
+import globals
 
 class move:
     def __init__(self):
@@ -13,76 +13,81 @@ class move:
             
             self.curr_state.enter()
         return self.curr_state
+		
 
 class STATE_null:
     "null"
     def timer(self, dt):
         return STATE_idle()
     def enter(self):
-        print "entering marek.move_state.null"
-        pass
+        print "enter marek.move.null"
     def leave(self):
-        print "leaving marek.move_state.null"
-        pass
-
+		print "leave marek.move.null"
+		
 class STATE_idle:
     "idle"
     def timer(self, dt):
         next_state = self
         #move_state.action is what the user wants to do - it will be set by the keyboard event
-        if fsm.marek.move_state.action.__doc__ == "idle":
-            if fsm.marek.dx != 0:
+        if globals.marek.move_state.action.__doc__ == "idle":
+            if globals.marek.dx != 0:
                 #move in x-axis
-                fsm.marek.move(fsm.marek.dx, 0)
+                globals.marek.move(globals.marek.dx, 0)
             else:
-                if fsm.marek.dy == 0:
-                    #TODO: run idle animation
+                if globals.marek.dy == 0:
+                    #TODO: run idle animation?
                     pass
-            if fsm.marek.dy != 0:
-                if fsm.marek.dy < 0:
+            if globals.marek.dy != 0:
+                if globals.marek.dy < 0:
                     #TODO: run falling animation
                     pass
                 else:
                     #TODO: run falling up animation?
                     pass
                 #move in y-axis
-                fsm.marek.move(0, fsm.marek.dy)
+                globals.marek.move(0, globals.marek.dy)
         else:
-            next_state = fsm.marek.move_state.action
+            next_state = globals.marek.move_state.action
         return next_state
         
     def enter(self):
-        print "entering marek.move_state.idle"
-        pass
+		print "enter marek.move.idle"
         
     def leave(self):
-        print "leaving marek.move_state.idle"
-        pass
+		print "leave marek.move.idle"
     
 class STATE_jump:
     "jump"
     def timer(self, dt):
         next_state = self
-        self.timer = self.timer + dt
-        self.limit = self.limit + dt
-        if self.timer < fsm.marek.jump_height and fsm.marek.move_state.action.__doc__ == "jump":
+        self.time = self.time + dt
+        self.limit = self.limit + dt        
+        print "time: " + str(self.time) + ", height: " + str(globals.marek.jump_height)
+        if self.time < globals.marek.jump_height and globals.marek.move_state.action.__doc__ == "jump":
             #jump_height is seconds that marek can jump for
-            if self.limit > (fsm.marek.jump_height * .1):
+            if self.limit > (globals.marek.jump_height * .1):
+                print "decrease"
                 self.limit = 0
-                fsm.marek.dy = fsm.marek.dy - fsm.marek.dy/15   #ascent gets slower as you go up                
-            fsm.marek.move(0, fsm.marek.dy)
-            if fsm.marek.dx != 0:
-                fsm.marek.move(fsm.marek.dx, 0)
+                globals.marek.dy = globals.marek.dy - globals.marek.dy/5   #ascent gets slower as you go up                
+            globals.marek.move(0, globals.marek.dy)
+            if globals.marek.dx != 0:
+                #move left/right
+                globals.marek.move(globals.marek.dx, 0)
         else:
-            if fsm.marek.move_state.action.__doc__ == "jump":
-                next_state = idle()
+            #either the jump is over or another action wants to happen
+            globals.marek.dy = 0 
+            if globals.marek.move_state.action.__doc__ == "jump":  
+                globals.marek.move_state.action = globals.marek.moves.STATE_idle()  #reset action to idle, so we aren't jumping forever
+                next_state = globals.marek.moves.STATE_idle()   #next state to idle, since no other action has been given
             else:
-                next_state = fsm.marek.move_action.action
+                #some other action wants to be done, so return it
+                next_state = globals.marek.move_state.action
         return next_state
-         
     def enter(self):
-        self.timer = 0  #keeps track of how long we have been in jump state
-        self.limit = 0  #used to control how quickly ascent slows
+        print "enter marek.move.jump"
+        self.time = 0  #keeps track of how long we have been in jump state
+        self.limit = 0  #used to control how quickly ascent slows        
+        globals.marek.dy = globals.marek.jump_speed
     def leave(self):
-        pass
+        print "enter marek.move.jump"
         

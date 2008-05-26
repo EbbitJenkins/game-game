@@ -5,13 +5,10 @@ class STATE_menu:
     "menu"
     def timer(self, dt):
         next_state = self
-        num = raw_input("1) Play game \n2) Exit \n")
-        if num == "1":
-            next_state = state.STATE_load()
-        else:
-            next_state = state.STATE_exit()
+        next_state = state.STATE_load()
         return next_state
     def enter(self):
         print "enter menu"
     def leave(self):
         print "leave menu"
+        

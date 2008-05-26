@@ -7,7 +7,7 @@ class STATE_intro:
         next_state = state.STATE_menu()
         return next_state
     def enter(self):
-        print "enter intro"
+        return
     def leave(self):
-        print "leave intro"
+        return
     

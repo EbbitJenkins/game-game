@@ -2,7 +2,7 @@
 
 import state
 
-global marek   #because everything needs access to it
+global curr_state
 
 def do_state(curr_state, next_state):
     #check if there is a new state
@@ -16,10 +16,3 @@ def do_state(curr_state, next_state):
     #either way, return the current state so that we remember
     return curr_state
     
-if __name__ == '__main__':
-    #initialize the current state
-    curr_state = state.STATE_null()
-    while True:
-        #timer(dt) returns either 'self' or a new state
-        #dt should really be the time since this was last run, in seconds
-        curr_state = do_state(curr_state, curr_state.timer(1))
