@@ -1,6 +1,8 @@
+import globals
+import engine
 import state
 import marek
-import fsm
+import sys
 
 #LOAD state is for loading a map, as well as everything involved with the map.  Goes to PLAY
 class STATE_load:
@@ -13,6 +15,8 @@ class STATE_load:
         print "enter load"
     def leave(self):
         print "leave load"
-    def init(self):
-        fsm.marek = marek.marek(2, 5)    #initialize the marek object 
+    def init(self):	    
+        globals.marek = marek.marek(120, 100, 2)    #initialize the marek object 
+        globals.camera = engine.Camera(globals.map, globals.marek, globals.window.width, globals.window.height)
+		
     
