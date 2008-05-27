@@ -27,31 +27,44 @@ class STATE_null:
 class STATE_idle:
     "idle"
     def timer(self, dt):
-        next_state = self
+        next_state = self        
         #move_state.action is what the user wants to do - it will be set by the keyboard event
         if globals.marek.move_state.action.__doc__ == "idle":
             if globals.marek.dx != 0:
                 #move in x-axis
-                globals.marek.move(globals.marek.dx, 0)
+                if not self.runFlag:
+                    print "Running dx: " + str(globals.marek.dx)
+                    self.runFlag = True
+                if globals.marek.dx < 0:
+                    globals.marek.image = globals.marek.images['stand_left']
+                if globals.marek.dx > 0:
+                    globals.marek.image = globals.marek.images['stand_right']
+                globals.marek.move(globals.marek.dx, 0, dt)
             else:
+                if self.runFlag:
+                    print "Stopped running"
+                    self.runFlag = False
                 if globals.marek.dy == 0:
                     #TODO: run idle animation?
                     pass
             if globals.marek.dy != 0:
                 if globals.marek.dy < 0:
                     #TODO: run falling animation
+                    print "Start falling"
                     pass
                 else:
+                    print "Start jumping"
                     #TODO: run falling up animation?
                     pass
                 #move in y-axis
-                globals.marek.move(0, globals.marek.dy)
+                globals.marek.move(0, globals.marek.dy, dt)
         else:
             next_state = globals.marek.move_state.action
         return next_state
         
     def enter(self):
-		print "enter marek.move.idle"
+        print "enter marek.move.idle"
+        self.runFlag = False  #debug
         
     def leave(self):
 		print "leave marek.move.idle"
@@ -69,10 +82,10 @@ class STATE_jump:
                 print "decrease"
                 self.limit = 0
                 globals.marek.dy = globals.marek.dy - globals.marek.dy/5   #ascent gets slower as you go up                
-            globals.marek.move(0, globals.marek.dy)
+            globals.marek.move(0, globals.marek.dy, dt)
             if globals.marek.dx != 0:
                 #move left/right
-                globals.marek.move(globals.marek.dx, 0)
+                globals.marek.move(globals.marek.dx, 0, dt)
         else:
             #either the jump is over or another action wants to happen
             globals.marek.dy = 0 

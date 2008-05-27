@@ -16,7 +16,7 @@ class STATE_load:
     def leave(self):
         print "leave load"
     def init(self):	    
-        globals.marek = marek.marek(120, 100, 2)    #initialize the marek object 
+        globals.marek = marek.marek(120, 100, 100)    #initialize the marek object 
         globals.camera = engine.Camera(globals.map, globals.marek, globals.window.width, globals.window.height)
 		
     
