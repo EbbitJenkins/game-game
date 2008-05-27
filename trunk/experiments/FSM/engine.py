@@ -223,10 +223,15 @@ if __name__ == '__main__':
     @globals.window.event
     def on_key_press(symbol, modifiers):
         if symbol == key.LEFT:
+            print "key.LEFT PRESSED"
             globals.marek.dx = -globals.marek.run_speed
+            print "globals.marek.dx: " + str(globals.marek.dx)
         elif symbol == key.RIGHT:
+            print "key.RIGHT PRESSED"
             globals.marek.dx = globals.marek.run_speed
+            print "globals.marek.dx: " + str(globals.marek.dx)
         elif symbol == key.SPACE:
+            print "key.SPACE PRESSED"
             globals.marek.move_state.action = globals.marek.moves.STATE_jump()
 
     @globals.window.event
@@ -235,6 +240,8 @@ if __name__ == '__main__':
             globals.marek.dx = 0
         elif symbol == key.RIGHT:
             globals.marek.dx = 0        
+        elif symbol == key.SPACE:
+            globals.marek.move_state.action = globals.marek.moves.STATE_idle()
 
     pyglet.clock.schedule_interval(update, 1/60.0)  # Run update a 60 fps
     pyglet.app.run()

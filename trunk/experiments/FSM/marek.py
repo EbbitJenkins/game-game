@@ -2,6 +2,7 @@ import globals
 import marek_move
 import fsm
 import engine
+import math
 
 
 # MAREK object will handle everything that marek does; it is instantiated in fsm as a global
@@ -23,8 +24,8 @@ class marek:
         self.x = x              # position on x-axis
         self.y = y              # position on y-axis
         self.weight = weight	# how fast marek falls
-        self.run_speed = 2      # how fast marek runs
-        self.jump_speed = self.weight + 3  #how fast marek jumps
+        self.run_speed = 200      # how fast marek runs
+        self.jump_speed = self.weight * 3  #how fast marek jumps
         self.jump_height = 1    # how long marek can jump for, in seconds
 
     def load_images(self):
@@ -46,7 +47,7 @@ class marek:
             self.curr_state.enter()
         return self.curr_state
 
-    def isCollision(self, dx, dy):
+    def do_collision(self, dx, dy):
 		# Computes boolean values for each of the 6 adjacent tiles
 		# Returns whether or not marek can move in the directions specified with dx, dy
 
@@ -57,32 +58,36 @@ class marek:
         #    s
 
         w, h = globals.tile_w, globals.tile_h
+        x, y = math.ceil(self.x), math.ceil(self.y)
+        buffer = 3
 
-        bound_n  = globals.map.bounds[(self.y + self.height + 1) / h][self.x / w] == '='
-        bound_s  = globals.map.bounds[(self.y - 1) / h][self.x / w] == '='
-        bound_se = globals.map.bounds[self.y / h][(self.x + self.width + 1) / w] == '='
-        bound_sw = globals.map.bounds[self.y / h][(self.x - 1) / w] == '='
-        bound_ne = globals.map.bounds[(self.y + h+1)/h][(self.x + 1 + self.width)/w] == '='
-        bound_nw = globals.map.bounds[(self.y + h + 1) / h][(self.x - 1) / w] == '='
+        bound_n  = globals.map.bounds[int((y + self.height + buffer) / h)][int(x / w)] == '='
+        bound_s  = globals.map.bounds[int((y - buffer) / h)][int(x / w)] == '='
+        bound_se = globals.map.bounds[int(y / h)][int((x + self.width + buffer) / w)] == '='
+        bound_sw = globals.map.bounds[int(y / h)][int((x - buffer) / w)] == '='
+        bound_ne = globals.map.bounds[int((y + h + buffer)/h)][int((x + buffer + self.width)/w)] == '='
+        bound_nw = globals.map.bounds[int((y + h + buffer) / h)][int((x - buffer) / w)] == '='
 
         # Might as well combine x directions
         bound_e = bound_se or bound_ne
         bound_w = bound_nw or bound_sw
-		
-        isCollided = False
 
         # If the sprite is bound in the direction it is going, return false
-        if (dx > 0 and bound_e) or (dx < 0 and bound_w) or (dy > 0 and bound_n) or (dy < 0 and bound_s):
-            isCollided = True
+        if (dx > 0 and bound_e) or (dx < 0 and bound_w): 
+            print "Collision detected! dx: " + str(dx)
+            dx = 0        
+        if (dy > 0 and bound_n) or (dy < 0 and bound_s):
+            #print "dy: " + str(dy)
+            dy = 0
         
-        return isCollided
-    def gravity(self):
-        self.move(0, -self.weight)
-    def move(self, dx, dy):
+        return dx, dy
+    def gravity(self, dt):
+        self.move(0, -self.weight, dt)
+    def move(self, dx, dy, dt):
         # actual drawing of the sprite will be handled elsewhere
-		if not self.isCollision(dx, dy):
-			self.x = self.x + dx
-			self.y = self.y + dy
+        dx, dy = self.do_collision(dx, dy)
+        self.x = self.x + (dx * dt)
+        self.y = self.y + (dy * dt)
     
 # Used to access move states
 class moves:
@@ -114,7 +119,7 @@ class STATE_idle:
             next_state = STATE_death()
         if globals.marek.hp > 0:
             globals.marek.move_state.do_state(globals.marek.move_state.curr_state.timer(dt))
-            globals.marek.gravity()
+            globals.marek.gravity(dt)
         return next_state
     def enter(self):
         print "enter marek.idle"
