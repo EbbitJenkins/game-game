@@ -47,21 +47,21 @@ def generate(tileset, mapname, data, width):
                 print >> map, "/",
 
         else:
-            # Any combination of horizontal and vertical edges print "+"
+            # Any combination of horizontal and vertical edges print "="
             if bounds & 0x05 and bounds & 0x0A:
-                print >> map, "+",
+                print >> map, "=",
 
-            # Either vertical edge print "|"
+            # Either vertical edge print "="
             elif bounds & 0x0A:
-                print >> map, "|",
+                print >> map, "=",
 
             # Upper edge only (platform) print "_"
             elif bounds & 0x05 == 0x01:
                 print >> map, "_",
 
-            # Lower edge only or upper and lower print "-"
+            # Lower edge only or upper and lower print "="
             elif bounds & 0x05:
-                print >> map, "-",
+                print >> map, "=",
 
             # If no collision bounds in tile then print "."
             elif not bounds:
