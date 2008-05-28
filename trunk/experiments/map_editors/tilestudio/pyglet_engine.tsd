@@ -18,9 +18,12 @@
 ##back into Tile Studio, therefore you shouldn't edit the ASCII
 ##by hand.
 
-def generate(tileset, mapname, data, width):
+def generate(tileset, mapname, data, mapsize, tilesize):
+    width = mapsize[0]
+
     map = open(mapname + ".level", "w")
-    print >> map, tileset + ".png"
+    print >> map, tileset + ".png", tilesize[0], tilesize[1],
+    print >> map, mapsize[0] * tilesize[0], mapsize[1] * tilesize[1]
 
     for i in xrange(len(data)):
         tile = data[i][0]
@@ -78,7 +81,8 @@ def generate(tileset, mapname, data, width):
 
 tileset = "<TileSetIdentifier>"
 mapname = "<MapIdentifier>"
-width = <MapWidth>
+mapsize = ( <MapWidth>,<MapHeight> )
+tilesize = ( <TileWidth>,<TileHeight> )
 
 data = [
 #mapdata
@@ -86,7 +90,7 @@ data = [
 #end mapdata
 ]
 
-generate(tileset, mapname, data, width)
+generate(tileset, mapname, data, mapsize, tilesize)
 
 #end map
 #end tileset 
