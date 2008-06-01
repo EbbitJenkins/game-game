@@ -1,0 +1,107 @@
+﻿# These are additional symbols and accented letters from the IBM-PC
+# extended character set. See http://en.wikipedia.org/wiki/Code_page_437
+# Eventually, these characters should be merged with the console.png ASCII font.
+# Because the font isn't tall enough, most accented uppercase letters are
+# missing. Also, all the various dot and small circle glyphs are
+# merged togehter into a single strip.
+
+[metadata]
+type = font
+file = console-extras.png
+name = ConsoleExtras
+
+[stripmap]
+0 = ☺
+1 = ☻
+2 = ♥
+3 = ♦
+4 = ♣
+5 = ♠
+6 = • º ° ∙ ·
+7 = ◘
+8 = ○
+9 = ◙
+10 = ♂
+11 = ♀
+12 = ♪
+13 = ♫
+14 = ☼
+15 = ►
+16 = ◄
+17 = ↕ ↨
+18 = ‼
+19 = ¶
+20 = §
+21 = ▬
+22 = ↑
+23 = ↓
+24 = →
+25 = ←
+26 = ∟
+27 = ↔
+28 = ▲
+29 = ▼
+30 = ⌂
+31 = ü
+32 = â
+33 = ä
+34 = à
+35 = å
+36 = ï
+37 = î
+38 = ì
+39 = ô
+40 = ö
+41 = ò
+42 = û
+43 = ù
+44 = ÿ
+45 = Ö
+46 = ¢
+47 = £
+48 = ¥
+49 = ƒ
+50 = á
+51 = í
+52 = ó
+53 = ú
+54 = ñ
+55 = ¿
+56 = ⌐
+57 = ¬
+58 = ¡
+59 = «
+60 = »
+61 = β
+62 = Γ
+63 = π
+64 = Σ
+65 = σ
+66 = µ
+67 = τ
+68 = Φ
+69 = Θ
+70 = Ω
+71 = δ
+# According to wikipedia strip 72 should be U+2205 but that doesn't
+# display correctly in Notepad under Windows. U+00D8 seems to display
+# much better
+72 = Ø
+# The set membership U+2208 symbol seems to be missing from all normal
+# fonts under windows and Notepad doesn't display it. Firefox however
+# was able to display it without problems.
+73 = ∈
+74 = ∩
+75 = ≡
+76 = ±
+77 = ≥
+78 = ≤
+79 = ⌠
+80 = ⌡
+81 = ÷
+82 = ≈
+83 = √
+84 = ■
+
+[control]
+space_width = 3
