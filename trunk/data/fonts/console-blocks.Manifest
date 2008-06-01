@@ -1,0 +1,61 @@
+﻿# These are the old school box drawing characters from the IBM-PC
+# extended character set. See http://en.wikipedia.org/wiki/Code_page_437
+# They are a 4x6 font that should be displayed with no extra line or char
+# spacing. Eventually, these characters should be merged with the
+# console.png ASCII font.
+# Because the font isn't wide enough a few of the glyphs are used for
+# two similar box drawing characters.
+
+[metadata]
+type = font
+file = console-blocks.png
+name = ConsoleBlocks
+
+[stripmap]
+0 = ░
+1 = ▒
+2 = ▓
+3 = │
+4 = ┤
+5 = ╡
+6 = ╢ ╫
+7 = ╖ ╥
+8 = ╕
+9 = ╣
+10 = ║ ╟
+11 = ╗
+12 = ╝
+13 = ╜ ╨
+14 = ╛
+15 = ┐
+16 = └
+17 = ┴
+18 = ┬
+19 = ├
+20 = ─
+21 = ┼
+22 = ╞
+23 = ╚
+24 = ╔
+25 = ╩
+26 = ╦
+27 = ╠
+28 = ═
+29 = ╬
+30 = ╧
+31 = ╤
+32 = ╙
+33 = ╘
+34 = ╒
+35 = ╓
+36 = ╪
+37 = ┘
+38 = ┌
+39 = █
+40 = ▄
+41 = ▌
+42 = ▐
+43 = ▀
+
+[control]
+space_width = 4
