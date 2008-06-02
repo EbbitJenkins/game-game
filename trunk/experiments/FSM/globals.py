@@ -1,5 +1,5 @@
 map = None
-marek = None
+player = None
 window = None
 camera = None
 tile_w = None
