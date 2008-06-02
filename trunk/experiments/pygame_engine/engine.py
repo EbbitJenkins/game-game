@@ -93,7 +93,11 @@ def onResize(size):
     # remap the color indices to match the loaded palette as long as both
     # palette's have identical RGB triples somewhere. Note that we don't call
     # convert() on the palette image itself or we'd loose its color information.
-    screen.set_palette(pygame.image.load("image\palette.png").get_palette())
+
+    #screen.set_palette(pygame.image.load("image\palette.png").get_palette())
+    # We'll use os.sep here so python can figure out which slash to use
+    path = ''.join(['image', os.sep, 'palette.png'])
+    screen.set_palette(pygame.image.load(path).get_palette())
 
     # The ratio between the display window size and the reference 320x240
     # resolution is used for scaling all game images and movement speeds. For
