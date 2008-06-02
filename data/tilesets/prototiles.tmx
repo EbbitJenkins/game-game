@@ -1,0 +1,11 @@
+<?xml version="1.0" ?>
+<map version="0.99b" orientation="orthogonal" width="16" height="16" tilewidth="8" tileheight="8">
+  <tileset firstgid="0" name="prototiles.png" tilewidth="8" tileheight="8">
+    <image source="prototiles.png"/>
+  </tileset>
+  <layer name="back">
+    <data encoding="base64" compression="gzip">
+      H4sIAClIREgC/33QU4+eYRQF0K+2bdu2bdueulNMbdtTW1NP8QO7nuQ0efNlMhcr52pn5+wKuVyuIlWoSg1qUoe6NKAhTWhKC1rShrZUojLVqE4talOP+jSiMc1oTita0472dKAjnUPq7UaP6O9Fb/qG1DuAQdGf8p3oQle6R2/q7xn5PvSjPwOjN/UPZghDGcHI6B/D+OifxGSmMT36ZzE3+ocxnFGMZizjmMBEpjCVGcxkNnOYx3wWsJAlLGUFK1nNGtaxnk1sZhsF7GAni1jMMpbH36tYGztsYCNb2Bp/b2dX7LA79t/LPgrZzyGKOBr7H+cEJznFWc6xJ2//AxzkMEc4lrf/ac5wngtcDJe5wjWuc4vb3An3uM9DinnCUy6F9P9VbnAzc++G9P8DHvE4c//n0/7PeM4LXvMmk0/7v+cDH/nMlzL6X/KKt7wro/8TJXzlWyaf7zs/Mvl8v/hdTv4npeXk//CXf7/Dsn8ABAAA
+    </data>
+  </layer>
+</map>
