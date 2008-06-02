@@ -6,9 +6,15 @@ from cStringIO import StringIO
 
 def convert(filename):
     # Load the ASCII map file; for now don't handle boundry data
-    tileset, tile_str, coll_str = open(filename).read().split('\n\n')
+    tileset_str, tile_str, coll_str = open(filename).read().split('\n\n')
     tiles = [s.split(' ') for s in tile_str.split('\n')]
 
+    # The first line contains tileset name and tile sizes
+    tilefile, tilewidth, tileheight = tileset_str.split()[0:3]
+    tilewidth = int(tilewidth)
+    tileheight = int(tileheight)
+
+    # Deduce the map size from tile layer
     width = len(tiles[0])
     height = len(tiles)
 
@@ -28,13 +34,15 @@ def convert(filename):
     outfile.write("""\
 <?xml version="1.0" ?>
 <map version="0.99b" orientation="orthogonal" \
-width="%d" height="%d" tilewidth="16" tileheight="16">
-  <tileset firstgid="1" name="%s" tilewidth="16" tileheight="16">
-    <image source="%s"/>
+width="%(width)d" height="%(height)d" \
+tilewidth="%(tilewidth)d" tileheight="%(tileheight)d">
+  <tileset firstgid="0" name="%(tilefile)s" \
+tilewidth="%(tilewidth)d" tileheight="%(tileheight)d">
+    <image source="%(tilefile)s"/>
   </tileset>
   <layer name="back">
     <data encoding="base64" compression="gzip">
-      """ % (width, height, tileset, tileset))
+      """ % locals())
 
     # Base64 encode the compressed binary data before writing to XML
     rawdata.close()
