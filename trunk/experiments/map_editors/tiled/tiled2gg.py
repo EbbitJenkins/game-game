@@ -16,9 +16,13 @@ def convert(filename):
     height = int(attrib["height"])
 
     # The first (and for now the only) tileset is the real tileset used by
-    # the game. Get image filename and the global tile id for first tile
+    # the game. Get image filename, tile size, and the global tile id for
+    # the first tile in the tileset.
     tileset = infile.find("tileset")
-    firstgid = int(tileset.attrib["firstgid"])
+    attrib = tileset.attrib
+    firstgid = int(attrib["firstgid"])
+    tilewidth = int(attrib["tilewidth"])
+    tileheight = int(attrib["tileheight"])
     tilefile = tileset.find("image").attrib["source"]
 
     # The first (bottom most) layer is the visible background tile layer.
@@ -44,23 +48,30 @@ def convert(filename):
     # the global tile id numbers for that row.
     format = "<%di" % width
     count = struct.calcsize(format)
-    tiles=( struct.unpack(format, rawdata.read(count)) for i in xrange(height) )
+    tiles=[ struct.unpack(format, rawdata.read(count)) for i in xrange(height) ]
 
-    # Open the output ASCII map file and print tileset filename
+    # Create the output ASCII map file
     filename = os.path.splitext(filename)[0] + ".level"
     outfile = open(filename, "w")
-    outfile.write(tilefile + "\n\n")
+
+    # Print the tileset name, tile set size, and map size
+    print >> outfile, tilefile, tilewidth, tileheight,
+    print >> outfile, tilewidth * width, tileheight * height
+    print >> outfile
 
     # Print the map as a grid of ASCII numbers, converting each global tile id
-    # to a 1 based "tileset relative" id.
+    # to a 0 based "tileset relative" id. Each tile set id is "pretty printed"
+    # as a 3 digit number with leading zeroes.
     for row in tiles:
-        f = lambda id: str(id - firstgid + 1) if (id >= firstgid) else str(id)
+        f = lambda id: "%03d" % (id - firstgid if id >= firstgid else id)
         row = itertools.imap(f, row)
         print >> outfile, string.join(row)
 
-    # Add dummy line to file so gg2tiled.py can unpack it properly since it
-    # expects a boundry layer to follow
-    outfile.write("\ndummy")
+    # Print dummy boundary layer
+    print >> outfile
+    for row in tiles:
+        print >> outfile, ". " * len(row)
+
     outfile.close()
 
 if __name__ == "__main__":
