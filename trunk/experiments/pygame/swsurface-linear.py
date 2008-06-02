@@ -14,7 +14,7 @@ pygame.APPACTIVE = 0x04
 # virtfps: the desired fixed virtual frame rate per second
 winsize = (640, 480)
 balls = 100
-fps = 60
+fps = 50
 virtfps = 20
 
 # All game logic, movement speed, and object locations are based on this
@@ -23,28 +23,40 @@ virtfps = 20
 # allowable window size the user can set.
 refsize = (320, 240)
 
+# The "i" key toggles linear interpolation on and off
+hasInterpolation = True
+
 # The renderTicks variable accumulates the total number of milliseconds used to
 # render each frame. The frameCount is used to display renderTicks in the windows
 # title bar every second and to reset renderTicks.
 renderTicks = 0
 frameCount = 0
 
-# If another application's window is selected, this becomes False and the main
-# event loop pauses by blocking on pygame.event.wait() until we regain input
-# focus again. Since we never get an initial ACTIVEEVENT, this variable must
-# be initialized to True.
-hasInputFocus = True
-
 # The time period of one virtual frame (in miliseconds). Precomputed here to
 # avoid floating point division on every frame which is expensive.
 virtualPeriod = 1000.0 / virtfps
 
 # Format string with stats for the window's title bar
-caption = "%dx%d    Drawing: %.2fms (%2.1f%%)    Display: %2.1ffps"
+caption = "%dx%d    Drawing: %.2fms (%2.1f%%)    Display: %2.1ffps    \
+Virtual: %2.1ffps   Interpolation: %s"
 
-# Dispatch a SDL event. Using the same function to handle events during a
-# paused and an active game simplifies things.
+# Dispatch a SDL event. This function will continue getting called until it
+# returns False when the timer's pygame.USEREVENT fires.
+#
+# BUGS: While the user is resizing, moving, or holding the Quit button on the
+# the window title bar, Python is suspended until the mouse button is released.
+# However, the timer continues to fire and generate events. If the user takes
+# too long, the timer will have filled up the entire event queue and then the
+# VIDEORESIZE or QUIT event will be lost. This behavior may only happen under
+# Windows.
+#
+# We can poll for any input events and for the active state so missing those
+# is not a problem. If we only allow the user to quit via the in game menu
+# and don't make the window resizable then missing any of the remaining events
+# shouldn't be a problem either.
 def onEvent(event):
+    global hasInterpolation, fps, virtfps, virtualPeriod, prevFrameTicks
+    returnValue = True
 
     # If the window is getting closed, then quit this shindig
     if event.type == pygame.QUIT:
@@ -54,15 +66,53 @@ def onEvent(event):
     elif event.type == pygame.KEYDOWN and event.key == pygame.K_ESCAPE:
         sys.exit()
 
+    # If the "i" key was hit, then toggle interpolation flag
+    elif event.type == pygame.KEYDOWN and event.key == pygame.K_i:
+        hasInterpolation = not hasInterpolation
+
+    # If PgUp or PgDn hit, adjust real display rate
+    elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEUP:
+        pygame.time.set_timer(pygame.USEREVENT, 1000 / fps)
+        fps += 1
+    elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
+        if fps > 1:
+            pygame.time.set_timer(pygame.USEREVENT, 1000 / fps)
+            fps -= 1
+
+    # If + or - hit, adjust the virtual frame rate
+    elif event.type == pygame.KEYDOWN and event.key == pygame.K_EQUALS:
+        virtfps += 1
+        virtualPeriod = 1000.0 / virtfps
+    elif event.type == pygame.KEYDOWN and event.key == pygame.K_MINUS:
+        if virtfps > 1:
+            virtfps -= 1
+            virtualPeriod = 1000.0 / virtfps
+        
     # If user resized window, then re-scale all graphics
     elif event.type == pygame.VIDEORESIZE:
         onResize(event.size)
 
-    # If the window looses/gains input focus, update hasInputFocus
+    # If timer fired, return False to iterate the game loop
+    elif event.type == pygame.USEREVENT:
+        returnValue = False
+
+    # If the window looses/gains input focus, start and stop the frame
+    # timer. When regaining focus, also reset the prevFrameTicks to
+    # current time, otherwise the main game loop will attempt to catch
+    # up all the virtual frames mised during the pause.
     elif event.type == pygame.ACTIVEEVENT:
         if event.state & pygame.APPINPUTFOCUS:
-            global hasInputFocus
-            hasInputFocus = bool(event.gain)
+            if event.gain:
+                pygame.time.set_timer(pygame.USEREVENT, 1000 / fps)
+                prevFrameTicks = pygame.time.get_ticks()
+            else:
+                pygame.time.set_timer(pygame.USEREVENT, 0)
+
+    # In case we missed some previous timer events, we don't want them to
+    # accumulate (maybe another program temporarily tied up the CPU).
+    pygame.event.clear(pygame.USEREVENT)
+
+    return returnValue
 
 random.seed()
 pygame.init()
@@ -78,15 +128,6 @@ def onResize(size):
     # Enforce the minimum window size defined by refsize
     width = size[0] if size[0] > refsize[0] else refsize[0]
     height = size[1] if size[1] > refsize[1] else refsize[1]
-
-    # Adjust either window width or height to enfore reference aspect ratio
-    # Preferably, whichever side of the window the user seems to have dragged
-    # should be left alone and the other side should be adjusted instead to
-    # match.
-    if abs(width - bgsize.width) < abs(height - bgsize.height):
-        width = int(float(refsize[0]) / refsize[1] * height)
-    else:
-        height = int(float(refsize[1]) / refsize[0] * width)
 
     # Create 8bit color depth window display surface
     screen = pygame.display.set_mode((width, height), pygame.RESIZABLE, 8)
@@ -125,7 +166,10 @@ def scale((x,y)):
 # resolution of the display window. This function interpolates the position of
 # the scrolling background and every sprite.
 def interpolate((u,v), (x,y), alpha):
-    return scale((u * (1.0 - alpha) + x * alpha, v * (1.0 - alpha) + y * alpha))
+    if hasInterpolation:
+        x, y = u * (1.0 - alpha) + x * alpha, v * (1.0 - alpha) + y * alpha
+
+    return scale((x, y))
 
 # Load a sprite/game image and pre-scale it to match the output display surface.
 # It turns out that the Surface.blit() routines are so optimized it's more
@@ -265,10 +309,7 @@ try:
     # The size of the real screen surface will be selectable by the user to
     # be a multiple of 320x240. We also want to set the video mode first so
     # that any subsequent surfaces we create can be convert()ed to the same
-    # pixel format as the display for maximum blit speed. Note that bgsize
-    # must already be defined for the aspect ratio adjustment that onResize
-    # does.
-    bgsize = pygame.Rect((0, 0), winsize)
+    # pixel format as the display for maximum blit speed.
     onResize(winsize)
 
     # Setup a random scrolling speed for the background
@@ -285,7 +326,7 @@ try:
     # first time onUpdate() gets called.
     prevSpriteRect = [ x.topleft for x in spriteRect ]
 
-    # Setup a timer object to maintain consistent frame rate
+    # Setup a timer object to calculate the average frame rate for us
     timer = pygame.time.Clock()
 
     # The remaining time in milliseconds until the next virtual frame. Used to
@@ -294,24 +335,26 @@ try:
     # 0 and virtualPeriod
     virtualTime = 0
 
+    # Setup a repeating timer for the desired frame rate. According to
+    # SDL docs this timer is only accurate to 10ms. Also, on Windows at
+    # least it seems the minimum interval is 20ms so the max frame rate it
+    # 50fps. However, this timer seems more consistent than the Clock()
+    # object's tick() delays, and ultimately that is more important for smooth
+    # animation.
+    pygame.time.set_timer(pygame.USEREVENT, 1000 / fps)
+
     # Used to keep track of elapsed time between each frame
     prevFrameTicks = pygame.time.get_ticks()
 
     while True:
         
-        # Poll for any pending events in the main loop
-        for event in pygame.event.get():
-            onEvent(event)
+        # Handle any pending events. When the timer's pygame.USEREVENT fires,
+        # onEvent() will return False and the main game loop will then iterate
+        while onEvent(pygame.event.wait()):
+            pass
 
-        # If we need to pause, block on event loop until we get focus back
-        while not hasInputFocus:
-            onEvent(pygame.event.wait())
-
-        # This will idle sleep to maintain the desired frame rate. I don't know
-        # what I was doing wrong before, but this now this seems to be quite
-        # accurate and it does away with the pygame.time.set_timer() problem
-        # of flooding the event queue.
-        timer.tick(fps)
+        # Calling timer's tick() function to measure average frame rate
+        timer.tick()
 
         # This will be used to measure how long it takes to render a frame
         startTicks = pygame.time.get_ticks()
@@ -353,9 +396,9 @@ try:
             average = float(renderTicks) / frameCount
             percent = (average * timer.get_fps()) / 10
             
-            data = (bgsize.width, bgsize.height, average, percent, timer.get_fps())
+            data = (bgsize.width, bgsize.height, average, percent,
+                    timer.get_fps(), virtfps, hasInterpolation)
             pygame.display.set_caption(caption % data)
-
             #print(caption % data)
 
             frameCount = 0
