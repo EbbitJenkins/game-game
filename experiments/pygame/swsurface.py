@@ -13,7 +13,7 @@ pygame.APPACTIVE = 0x04
 # fps: the desired frames per second
 winsize = (640, 480)
 balls = 100
-fps = 60
+fps = 50
 
 # All game logic, movement speed, and object locations are based on this
 # reference size of 320x240. During actual drawing, the cameara and sprite
@@ -27,18 +27,25 @@ refsize = (320, 240)
 renderTicks = 0
 frameCount = 0
 
-# If another application's window is selected, this becomes False and the main
-# event loop pauses by blocking on pygame.event.wait() until we regain input
-# focus again. Since we never get an initial ACTIVEEVENT, this variable must
-# be initialized to True.
-hasInputFocus = True
-
 # Format string with stats for the window's title bar
 caption = "%dx%d    Drawing: %.2fms (%2.1f%%)    Display: %2.1ffps"
 
-# Dispatch a SDL event. Using the same function to handle events during a
-# paused and an active game simplifies things.
+# Dispatch a SDL event. This function will continue getting called until it
+# returns False when the timer's pygame.USEREVENT fires.
+#
+# BUGS: While the user is resizing, moving, or holding the Quit button on the
+# the window title bar, Python is suspended until the mouse button is released.
+# However, the timer continues to fire and generate events. If the user takes
+# too long, the timer will have filled up the entire event queue and then the
+# VIDEORESIZE or QUIT event will be lost. This behavior may only happen under
+# Windows.
+#
+# We can poll for any input events and for the active state so missing those
+# is not a problem. If we only allow the user to quit via the in game menu
+# and don't make the window resizable then missing any of the remaining events
+# shouldn't be a problem either.
 def onEvent(event):
+    returnValue = True
 
     # If the window is getting closed, then quit this shindig
     if event.type == pygame.QUIT:
@@ -52,11 +59,23 @@ def onEvent(event):
     elif event.type == pygame.VIDEORESIZE:
         onResize(event.size)
 
-    # If the window looses/gains input focus, update hasInputFocus
+    # If timer fired, return False to iterate the game loop
+    elif event.type == pygame.USEREVENT:
+        returnValue = False
+
+    # If the window looses/gains input focus, start and stop the frame timer
     elif event.type == pygame.ACTIVEEVENT:
         if event.state & pygame.APPINPUTFOCUS:
-            global hasInputFocus
-            hasInputFocus = bool(event.gain)
+            if event.gain:
+                pygame.time.set_timer(pygame.USEREVENT, 1000 / fps)
+            else:
+                pygame.time.set_timer(pygame.USEREVENT, 0)
+
+    # In case we missed some previous timer events, we don't want them to
+    # accumulate (maybe another program temporarily tied up the CPU).
+    pygame.event.clear(pygame.USEREVENT)
+
+    return returnValue
 
 random.seed()
 pygame.init()
@@ -240,24 +259,26 @@ try:
     spriteRect = [ randomRect(ballSize) for i in xrange(balls) ]
     spriteSpeed = [ randomSpeed(5) for i in xrange(balls) ]
 
-    # Setup a timer object to maintain consistent frame rate
+    # Setup a timer object to calculate the average frame rate for us
     timer = pygame.time.Clock()
+
+    # Setup a repeating timer for the desired frame rate. According to
+    # SDL docs this timer is only accurate to 10ms. Also, on Windows at
+    # least it seems the minimum interval is 20ms so the max frame rate it
+    # 50fps. However, this timer seems more consistent than the Clock()
+    # object's tick() delays, and ultimately that is more important for smooth
+    # animation.
+    pygame.time.set_timer(pygame.USEREVENT, 1000 / fps)
 
     while True:
         
-        # Poll for any pending events in the main loop
-        for event in pygame.event.get():
-            onEvent(event)
+        # Handle any pending events. When the timer's pygame.USEREVENT fires,
+        # onEvent() will return False and the main game loop will then iterate
+        while onEvent(pygame.event.wait()):
+            pass
 
-        # If we need to pause, block on event loop until we get focus back
-        while not hasInputFocus:
-            onEvent(pygame.event.wait())
-
-        # This will idle sleep to maintain the desired frame rate. I don't know
-        # what I was doing wrong before, but this now this seems to be quite
-        # accurate and it does away with the pygame.time.set_timer() problem
-        # of flooding the event queue.
-        timer.tick(fps)
+        # Calling timer's tick() function to measure average frame rate
+        timer.tick()
 
         # This will be used to measure how long it takes to render a frame
         startTicks = pygame.time.get_ticks()
@@ -285,7 +306,7 @@ try:
             
             data = (bgsize.width, bgsize.height, average, percent, timer.get_fps())
             pygame.display.set_caption(caption % data)
-            print(caption % data)
+            #print(caption % data)
 
             frameCount = 0
             renderTicks = 0
