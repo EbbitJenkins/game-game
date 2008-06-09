@@ -380,7 +380,7 @@ if __name__ == '__main__':
     player = Sprite(160, 120, 4)
     camera = Camera(map, player, map.win_w, map.win_h)
     
-    speed = 4
+    speed = 1
     dirs = {key.LEFT:-speed, key.RIGHT:speed}
 
     # Turn on alpha transparency
@@ -422,5 +422,5 @@ if __name__ == '__main__':
         if symbol in dirs.keys() and player.dx == dirs[symbol]:
             player.stop_running()
 
-    pyglet.clock.schedule_interval(update, 1/60.0)  # Run update a 60 fps
+    pyglet.clock.schedule(update)  # Run update on every vsync
     pyglet.app.run()
