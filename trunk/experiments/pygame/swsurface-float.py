@@ -11,20 +11,17 @@ pygame.APPACTIVE = 0x04
 # winsize: initial display size for the window
 # balls: the number of bouncing sprites to create
 # fps: the desired display frame rate per second 
-# virtfps: the desired fixed virtual frame rate per second
+# speedup: overall speedup or slowdown factor
 winsize = (640, 480)
 balls = 100
 fps = 100
-virtfps = 20
+speedup = 1.0
 
 # All game logic, movement speed, and object locations are based on this
 # reference size of 320x240. During actual drawing, the cameara and sprite
 # coordinates are scaled to match the window size. This also defines the minimum
 # allowable window size the user can set.
 refsize = (320, 240)
-
-# The "i" key toggles linear interpolation on and off
-hasInterpolation = True
 
 # The renderTicks variable accumulates the total number of milliseconds used to
 # render each frame. The frameCount is used to display renderTicks in the windows
@@ -38,18 +35,13 @@ frameCount = 0
 # be initialized to True.
 hasInputFocus = True
 
-# The time period of one virtual frame (in miliseconds). Precomputed here to
-# avoid floating point division on every frame which is expensive.
-virtualPeriod = 1000.0 / virtfps
-
 # Format string with stats for the window's title bar
-caption = "%dx%d    Drawing: %.2fms (%2.1f%%)    Display: %2.1ffps    \
-Virtual: %2.1ffps   Interpolation: %s"
+caption = "%dx%d    Draw: %.2fms (%2.1f%%)    Disp: %2.1ffps    Speed: %1.1fx"
 
 # Dispatch a SDL event. Using the same function to handle events during a
 # paused and an active game simplifies things.
 def onEvent(event):
-    global hasInterpolation, fps, virtfps, virtualPeriod
+    global fps, speedup, prevFrameTicks, hasInputFocus
 
     # If the window is getting closed, then quit this shindig
     if event.type == pygame.QUIT:
@@ -68,29 +60,25 @@ def onEvent(event):
         fps += 1
     elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
         if fps > 1:
-            pygame.time.set_timer(pygame.USEREVENT, 1000 / fps)
             fps -= 1
 
     # If + or - hit, adjust the virtual frame rate
     elif event.type == pygame.KEYDOWN and event.key == pygame.K_EQUALS:
-        virtfps += 1
-        virtualPeriod = 1000.0 / virtfps
+        speedup += 0.1
     elif event.type == pygame.KEYDOWN and event.key == pygame.K_MINUS:
-        if virtfps > 1:
-            virtfps -= 1
-            virtualPeriod = 1000.0 / virtfps
+        if speedup >= 0.2:
+            speedup -= 0.1
         
     # If user resized window, then re-scale all graphics
     elif event.type == pygame.VIDEORESIZE:
         onResize(event.size)
 
-    # If the window looses/gains input focus, update hasInputFocus
-    # When regaining focus, also reset the prevFrameTicks to current time,
-    # otherwise the main game loop will attempt to catch up all the virtual
-    # frames missed during the pause.
+    # If the window looses/gains input focus, start and stop the frame
+    # timer. When regaining focus, also reset the prevFrameTicks to
+    # current time, otherwise the main game loop will attempt to catch
+    # up all the virtual frames mised during the pause.
     elif event.type == pygame.ACTIVEEVENT:
         if event.state & pygame.APPINPUTFOCUS:
-            global hasInputFocus, prevFrameTicks
             hasInputFocus = bool(event.gain)
             prevFrameTicks = pygame.time.get_ticks()
 
@@ -140,17 +128,6 @@ def onResize(size):
 def scale((x,y)):
     return int(round(x * ratio[0])), int(round(y * ratio[1]))
 
-# Given two tuples (u, v) and (x, y) in the reference 320x240 coordinate space,
-# and given a floating point interpolation factor "alpha" between 0.0 and 1.0,
-# return an interpolated and scaled coordinate that uses the full available
-# resolution of the display window. This function interpolates the position of
-# the scrolling background and every sprite.
-def interpolate((u,v), (x,y), alpha):
-    if hasInterpolation:
-        x, y = u * (1.0 - alpha) + x * alpha, v * (1.0 - alpha) + y * alpha
-
-    return scale((x, y))
-
 # Load a sprite/game image and pre-scale it to match the output display surface.
 # It turns out that the Surface.blit() routines are so optimized it's more
 # efficient to pre-scale and blit at the full resolution, even when blitting
@@ -175,21 +152,23 @@ def loadImage(filename):
     return newimage, size
 
 # Return random [x, y] list that can be used as a sprite/camera movement
-# speed. The returned x and y values are in the range of "-speed" to "speed",
-# excluding 0.
+# speed. The returned x and y values are in the range of "-speed/50.0" to
+# "speed/50.0", excluding 0. The division by 50.0 accounts for the fact that
+# in onUpdate() this speed is multiplied by the elapsed time (in miliseconds)
+# between frames.
 def randomSpeed(speed):
     values = range(1, speed, 1)
     values += range(-1, -speed, -1)
-    return [random.choice(values), random.choice(values)]
+    return [random.choice(values) / 50.0, random.choice(values) / 50.0]
 
-# Return a new rectangle of the same size as (width, height) but randomly
-# positioned within the reference 320x240 area such that the rect still remains
-# completely visible. The new rect is suitable for use as a random starting
-# location for sprites.
-def randomRect((width, height)):
-    x = random.randrange(refsize[0] - width)
-    y = random.randrange(refsize[1] - height)
-    return pygame.Rect((x, y), (width, height))
+# Return a new [x, y] position randomly positioned within the reference 320x240
+# area such that the rect defined by (width, height) still remains completely
+# visible. The new position is suitable for use as a random starting location
+# for sprites.
+def randomPos((width, height)):
+    x = float(random.randrange(refsize[0] - width))
+    y = float(random.randrange(refsize[1] - height))
+    return [x, y]
 
 # It's more efficient to pre-render the entire scrolling tile map into an
 # intermediate surface (at the appropriate size for the current window)
@@ -225,59 +204,52 @@ def initBackground():
 # of "bg" by the specified pixel amount. This offset allows for a smooth
 # scrolling background.
 def drawBackground(offset):    
-    # By making the offset "wrap around" under modulo arithmetic, we can get a
-    # continuously scrolling background pattern. Note that it is now necessary
-    # to do the modulo arithmetic directly in the draw routine. If the modulo
-    # was done on the interpolated "camera" variable, there would be a
-    # discontinuity as the interpolation tried to catch up between the two
-    # virtual frames
-    imageSize = tileImage.get_size()
-    offset = offset[0] % imageSize[0], offset[1] % imageSize[1]
-
     # To draw partial tile images at the upper and left edges of the window, we
     # actually have to start drawing slightly outside of the window. Hence, the
     # subtraction of the tile width and height.
+    imageSize = tileImage.get_size()
     offset = offset[0] - imageSize[0], offset[1] - imageSize[1]
     screen.blit(bg, offset)
 
 # Update position of all the sprites and the scrolling background. Also perform
 # some rudimentary edge of window collision detection on each sprite
-def onUpdate():
-    global camera, prevCamera
+def onUpdate(dt):
+    global camera, spritePos, spriteSpeed
 
     # Bounce the balls around with simple edge of screen collision
     for i in xrange(balls):
-        rect = spriteRect[i]
+        pos = spritePos[i]
         speed = spriteSpeed[i]
         
-        # Move the sprite to its new position based on its current velocity.
-        # Also save the previous position to allow later interpolation between
-        # the two points.
-        prevSpriteRect[i] = rect.topleft
-        rect.move_ip(speed)
-
-        if rect.left < 0 or rect.right > refsize[0]:
-            speed[0] = -speed[0]
-        if rect.top < 0 or rect.bottom > refsize[1]:
-            speed[1] = -speed[1]
+        # We can no longer simply toggle the speed between positive and negative
+        # because we can't depend on how far the ball actually moved per frame
+        pos[0], pos[1] = pos[0] + dt * speed[0], pos[1] + dt * speed[1]
+        if pos[0] < 0:
+            speed[0] = abs(speed[0])
+        if pos[1] < 0:
+            speed[1] = abs(speed[1])
+        if pos[0] + ballSize[0] > refsize[0]:
+            speed[0] = -abs(speed[0])
+        if pos[1] + ballSize[1] > refsize[1]:
+            speed[1] = -abs(speed[1])
 
     # Update the camera's position using the current background scrolling speed.
-    # Store the previous camere position to allow later interpolation between
-    # the two points.
-    prevCamera = camera
-    camera = camera[0] + scroll[0], camera[1] + scroll[1]
+    # By making the offset "wrap around" under modulo arithmetic, we can get a
+    # continuously scrolling background pattern.
+    width, height = tileSize
+    speed = dt * scroll[0], dt * scroll[1]
+    camera = (camera[0] + speed[0]) % width, (camera[1] + speed[1]) % height
 
 # Draw the scrolling background and the sprites at their current locations.
 # The camera and sprite locations are scaled up from their logical 320x240
 # coordinates to match the actual window size.
-def onDraw(timeRatio):
+def onDraw():
     # First blit the background so it appears underneath all sprites
-    drawBackground(interpolate(prevCamera, camera, timeRatio))
+    drawBackground(scale(camera))
 
     # Blit every sprite at its current position
     for i in xrange(balls):
-        dest = interpolate(prevSpriteRect[i], spriteRect[i].topleft, timeRatio)
-        screen.blit(ballImage, dest)
+        screen.blit(ballImage, scale(spritePos[i]))
     
 # The try..finally block ensures that pygame.quit() is always called to close the
 # main window. This is necessary when running under the IDLE Python GUI since the
@@ -295,31 +267,19 @@ try:
     # Setup a random scrolling speed for the background
     scroll = randomSpeed(2)
     camera = (0, 0)
-    prevCamera = (0, 0)
 
     # Create some sprites with random positions and movement speeds
     spriteSpeed = [ randomSpeed(4) for i in xrange(balls) ]
-    spriteRect = [ randomRect(ballSize) for i in xrange(balls) ]
-
-    # This list of tuples has the sprite positions from the previous virtual
-    # frame. For now, create a dummy placeholder list that will get changed the
-    # first time onUpdate() gets called.
-    prevSpriteRect = [ x.topleft for x in spriteRect ]
+    spritePos = [ randomPos(ballSize) for i in xrange(balls) ]
 
     # Setup a timer object to maintain consistent frame rate
     timer = pygame.time.Clock()
-
-    # The remaining time in milliseconds until the next virtual frame. Used to
-    # schedule the correct number of virtual frames per real frames, and used
-    # to interploate the camera/sprite positions between frames. Always between
-    # 0 and virtualPeriod
-    virtualTime = 0
 
     # Used to keep track of elapsed time between each frame
     prevFrameTicks = pygame.time.get_ticks()
 
     while True:
-        
+
         # Poll for any pending events in the main loop
         for event in pygame.event.get():
             onEvent(event)
@@ -342,25 +302,15 @@ try:
         # changing number of sprites) is not visible to the user.
         pygame.display.flip()
 
-        # Accumulate the elapsed time between each frame in virtualTime
+        # Calculate the elpased time between the previous frame and this one
         curFrameTicks = pygame.time.get_ticks()
-        virtualTime += curFrameTicks - prevFrameTicks
+        dt = curFrameTicks - prevFrameTicks
         prevFrameTicks = curFrameTicks
-        
-        # Based on the elapsed time between real frames, execute as many
-        # virtual frames as necessary to catch up and maintain the consistent
-        # virtual frame rate. Each virtual frame will update the sprite and
-        # background scroll location
-        while virtualTime >= virtualPeriod:
-            onUpdate()
-            virtualTime -= virtualPeriod
 
-        # Draw interpolating the positions from the last two virtual frames
-        # The left over virtual time specifies how much to blend the two
-        # positions together. A time of 0 uses just the previous position and
-        # a time of 1 uses just the current position. This is similar to how a
-        # "alpha" blending value would work.
-        onDraw(virtualTime / virtualPeriod)
+        # Update the positions of the camera and all sprites based on the
+        # elapsed real time between frames (i.e. the delta time)
+        onUpdate(dt * speedup)
+        onDraw()
 
         # Calculate and accumulate the total elapsed time to render each frame
         renderTicks += pygame.time.get_ticks() - startTicks
@@ -375,7 +325,7 @@ try:
             percent = (average * timer.get_fps()) / 10
             
             data = (bgsize.width, bgsize.height, average, percent,
-                    timer.get_fps(), virtfps, hasInterpolation)
+                    timer.get_fps(), speedup)
             pygame.display.set_caption(caption % data)
             #print(caption % data)
 
