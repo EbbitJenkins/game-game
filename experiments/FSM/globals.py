@@ -1,5 +1,9 @@
 map = None
 player = None
+spiders = []
+spider_number = 0
+robot = None
+drone = None
 window = None
 camera = None
 tile_w = None

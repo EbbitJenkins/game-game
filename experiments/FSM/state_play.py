@@ -14,6 +14,8 @@ class STATE_play:
             #globals.map.update(self.x, self.y)	
 			#TODO: Do AI stuff
             globals.marek.do_timer(dt) 				#Do player stuff
+            for spider in globals.spiders:
+                spider.update(dt)                   # Do spider stuff
         else:
             #marek is in the DEATH state and has no lives left, thus game over
             next_state = state.STATE_death()

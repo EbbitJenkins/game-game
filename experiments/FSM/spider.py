@@ -1,44 +1,57 @@
 import globals
-import marek_move
+import spider_ai
+import spider_move
 import fsm
 import engine
 import math
 
 
-# MAREK object will handle everything that marek does; it is instantiated in fsm as a global
-# other sprite objects could be very similar to this
-class marek:
+# SPIDER
+# A mechanical spider than hops around and can attach to walls and
+# ceilings. It's annoying enough not to require its own weapon, and it's
+# lightly armored so one shot kills it. It moves at a comparable speed
+# to Marek walking.
+#
+# Note: that is the plan, not the reality at this point
+# ----------------------------------------------------------------------------------------
+class spider:
+    # creates all of the attributes describing the sprite's behavior
     def __init__(self, x, y, weight):
-        self.curr_state = STATE_null()    # initializes the state for the marek's FSM
-        self.move_state = marek_move.move()
+        self.curr_state = STATE_null(self)          # initializes the state for the spider's FSM
+        self.move_state = spider_move.move(self)    # initializes spider movement FSM
         self.moves = moves()    # used to access list of move states
+        self.ai_state = spider_ai.ai(self)          # initializes spider AI FSM
+        self.ais = ais()         # used to access list of AI states
         self.images = self.load_images()
         self.image = self.images['stand_right']
         self.width, self.height = self.image.width, self.image.height
         self.buffer = 5         # used for collision
         self.active = False 	# is in camera?
-        self.hp = 100           # marek's current hp
-        self.hp_max = 100       # max hp marek currently can have
-        self.lives = 3          # times that marek can die
+        self.hp = 100           # spider's current hp
+        self.hp_max = 100       # max hp spider currently can have
+        self.lives = 1          # times that spider can die
         self.dx = 0             # directional x-vector, max 1, min -1
         self.dy = 0             # directional y-vector, max 1, min -1
         self.x = x              # position on x-axis
         self.y = y              # position on y-axis
-        self.weight = weight	# how fast marek falls
-        self.run_speed = 5      # how fast marek runs
-        self.jump_speed = self.weight * 3  # how fast marek ascends/descends when he jumps or falls
-        self.jump_height = 1    # how long marek can jump for, in seconds
-        self.jump_arc = 3       # how fast marek can move in x-axis while jumping or falling
+        self.weight = weight	# how fast spider falls
+        self.run_speed = 1      # how fast spider runs
+        self.run_length = 1     # how long spider walks in each direction
+        self.jump_speed = self.weight * 3.0  # how fast spider ascends/descends when he jumps or falls
+        self.jump_height = 0.5    # how long spider can jump for, in seconds
+        self.jump_arc = 2       # how fast spider can move in x-axis while jumping or falling
+        self.gravity = 'south'  # which direction is falling
+        self.facing = 'west'    # which direction it is facing
 
     def load_images(self):
         images = {}
-        images['stand_left'] = engine.load_image('marek-left.png')
-        images['stand_right'] = engine.load_image('marek-right.png')
+        images['stand_left'] = engine.load_image('spider.png')
+        images['stand_right'] = engine.load_image('spider.png')
         return images
 		
-    def do_timer(self, dt):
-        # runs the marek FSM - no return is necissary since do_state has access to self.curr_state
-        self.do_state(self.curr_state.timer(dt))
+    def update(self, dt):
+        # runs the spider FSM
+        self.do_state(self.curr_state.update(dt))
         
     def do_state(self, next_state):
         if not (next_state == self.curr_state):
@@ -51,7 +64,7 @@ class marek:
 
     def isCollision(self):
         # Computes boolean values for each of the 6 adjacent tiles
-		# Returns whether or not marek can move in the directions specified in self.dx, self.dy
+		# Returns whether or not spider can move in the directions specified in self.dx, self.dy
 
         # Since this sprite is 1x2 tiles, we need 4 x bounds
         #    n
@@ -76,14 +89,27 @@ class marek:
         bound_e = bound_se or bound_ne
         bound_w = bound_nw or bound_sw
         
-        isCollided = False       
-
-        # If the sprite is bound in the direction it is going, return false
-        if (dx > 0 and bound_e) or (dx < 0 and bound_w) or (dy > 0 and bound_n) or (dy < 0 and bound_s): 
-            #print "Collision detected! dx: " + str(dx) + ", dy: " + str(dy) + ", x: " + str(self.x) + ", y: " + str(self.y)
-            isCollided = True                    
+        collision           = {"north": 0, "east": 0, "south": 0, "west": 0}
         
-        return isCollided
+
+        # If the sprite is bound in a direction it is going, set that array position to false
+        if (dy > 0 and bound_n):  
+            collision["north"] = 1
+        if (dx > 0 and bound_e):
+            collision["east"] = 1
+        if (dy < 0 and bound_s): 
+            collision["south"] = 1
+        if (dx < 0 and bound_w):
+            collision["west"] = 1
+            
+        return collision
+    def isGrounded(self):
+        # used to see if it has walked off an edge, sorta hacky
+        if globals.map.bounds[int((self.y - 1) / globals.tile_h)][int(self.x / globals.tile_w)] == '=':        
+            return True
+        else:
+            return False
+    
     def dig(self, dx, dy, x, y, count, direction):
         # Directions = n, s, se, sw, ne, nw
         # Recursively checks for boundaries, pixel by pixel
@@ -173,112 +199,87 @@ class marek:
                     collision = True
                 else:
                     collision = False
-            return collision
-    def do_collision(self, dx, dy):
-		# Computes boolean values for each of the 6 adjacent tiles
-		# Returns whether or not marek can move in the directions specified with dx, dy
-
-        # Since this sprite is 1x2 tiles, we need 4 x bounds
-        #    n
-        # nw P ne
-        # sw P se
-        #    s
-
-        w, h = globals.tile_w, globals.tile_h
-        x, y = math.ceil(self.x), math.ceil(self.y)
-
-        bound_n  = globals.map.bounds[int((y + self.height + self.buffer) / h)][int(x / w)] == '='
-        bound_s  = globals.map.bounds[int((y - self.buffer) / h)][int(x / w)] == '='
-        bound_se = globals.map.bounds[int(y / h)][int((x + self.width + self.buffer) / w)] == '='
-        bound_sw = globals.map.bounds[int(y / h)][int((x - self.buffer) / w)] == '='
-        bound_ne = globals.map.bounds[int((y + h + self.buffer)/h)][int((x + self.buffer + self.width)/w)] == '='
-        bound_nw = globals.map.bounds[int((y + h + self.buffer) / h)][int((x - self.buffer) / w)] == '='
-
-        # Might as well combine x directions
-        bound_e = bound_se or bound_ne
-        bound_w = bound_nw or bound_sw
-
-        # If the sprite is bound in the direction it is going, return false
-        if (dx > 0 and bound_e) or (dx < 0 and bound_w): 
-            print "Collision detected! dx: " + str(dx)
-            dx = 0        
-        if (dy > 0 and bound_n) or (dy < 0 and bound_s):
-            #print "dy: " + str(dy)
-            dy = 0
-        
-        return dx, dy
-    def gravity(self, dt):
-        self.move(0, -self.weight, dt)
+            return collision    
     def move(self):
         # actual drawing of the sprite will be handled elsewhere
-        #dx, dy = self.do_collision(dx, dy)
-        if not self.isCollision():
-            self.x = self.x + self.dx
+        collision = self.isCollision()
+        north = collision["north"]
+        if north:
+            pass
+        if not (collision['north'] or collision['south']):
             self.y = self.y + self.dy
-    
+        if not (collision['east'] or collision['west']):
+            self.x = self.x + self.dx           
 # Used to access move states
 class moves:
-    def STATE_null(self):
-        return marek_move.STATE_null()
-    def STATE_idle(self):
-        return marek_move.STATE_idle()
-    def STATE_jump(self):
-        return marek_move.STATE_jump() 
-    def STATE_fall(self):
-        return marek_move.STATE_fall()
+    def STATE_null(self, sprite):
+        return spider_move.STATE_null(sprite)
+    def STATE_idle(self, sprite):
+        return spider_move.STATE_idle(sprite)
+    def STATE_jump(self, sprite):
+        return spider_move.STATE_jump(sprite) 
+    def STATE_fall(self, sprite):
+        return spider_move.STATE_fall(sprite)
+# Used to access ai states
+class ais:
+    def STATE_null(self, sprite):
+        return spider_ai.STATE_null(sprite)
 # NULL is an initial state, goes to NEW
 class STATE_null:
     "null"
-    def timer(self, dt):
-        next_state = STATE_new()
+    def __init__(self, sprite):
+        self.spider = sprite    
+    def update(self, dt):
+        next_state = STATE_new(self.spider)
         return next_state
     def enter(self):
-        print "enter marek.null"
+        print "enter spider.null"
     def leave(self):
-        print "leave marek.null"
+        print "leave spider.null"
 
 # IDLE runs while nothing else is going on in this FSM
-# In theory, there will be 3-4 more FSM being run from within idle.timer, controlling movement, attacks, collision and (in the case of NPC) AI
 class STATE_idle:
     "idle"
-    def timer(self, dt):
+    def __init__(self, sprite):
+        self.spider = sprite
+    def update(self, dt):
         next_state = self
-        if globals.marek.hp == 0:
-            # since the marek has no more hp, go to death state
-            next_state = STATE_death()
-        if globals.marek.hp > 0:
-            globals.marek.move_state.do_state(globals.marek.move_state.curr_state.timer(dt))    # calculates appropriate dx, dy
-            globals.marek.move()                                                                # applies dx, dy to x, y -- collision happens here always
+        if self.spider.hp <= 0:
+            # since the spider has no more hp, go to death state
+            next_state = STATE_death(self.spider)
+        if self.spider.hp > 0:
+            self.spider.ai_state.do_state(self.spider.ai_state.curr_state.update(dt))          # decides what to do
+            self.spider.move_state.do_state(self.spider.move_state.curr_state.update(dt))      # calculates appropriate dx, dy            
+            self.spider.move()                                                                 # applies dx, dy to x, y -- collision happens here always
         return next_state
     def enter(self):
-        print "enter marek.idle"
+        print "enter spider.idle"
     def leave(self):
-        print "leave marek.idle"
+        print "leave spider.idle"
     
-# NEW initializes the marek object to default conditions, such as when you come back from death
+# NEW initializes the spider object to default conditions
 # goes to IDLE
 class STATE_new:
     "new"
-    def timer(self, dt):
-        next_state = STATE_idle()
-        globals.marek.hp = globals.marek.hp_max
-        globals.marek.move_state.action = globals.marek.moves.STATE_idle()
+    def __init__(self, sprite):
+        self.spider = sprite    
+    def update(self, dt):
+        next_state = STATE_idle(self.spider)
+        self.spider.hp = self.spider.hp_max
         return next_state
     def enter(self):
-        print "enter marek.new"
+        print "enter spider.new"
     def leave(self):
-        print "leave marek.new"
+        print "leave spider.new"
 
-# DEATH removes a life and goes back to NEW
+# DEATH removes a life and cleans up spider object and maybe drops a powerup
 class STATE_death:
     "death"
-    def timer(self, dt):
-        next_state = STATE_new()
-        return next_state
+    def update(self, dt):
+        return self
     def enter(self):
-        print "enter marek.death"
-        globals.marek.lives = globals.marek.lives - 1
-        print "LIVES REMAINING: %d" % (globals.marek.lives, )
+        print "enter spider.death"
     def leave(self):
-        print "leave marek.death"
+        print "leave spider.death"
+        
         
