@@ -107,6 +107,8 @@ class Camera:
 		# Camera's x and y must be subtracted or the sprite would be moving at
         # double speed and out of the center of the camera's view.
         globals.marek.image.blit(globals.marek.x - self.x, globals.marek.y - self.y)
+        for spider in globals.spiders:
+            spider.image.blit(spider.x, spider.y)
  
 def collide(a, b):
     if a.y + a.height < b.y:
@@ -210,6 +212,11 @@ if __name__ == '__main__':
     except IndexError:
 		print 'Please supply a level file (big1.level, big2.level, small.level)'
 		exit()
+    try:
+        globals.spider_number = sys.argv[2]
+    except IndexError:
+        print 'Please supply a number of spiders to spawn after the level file (1, 5, 50, etc)'
+        exit()        
     globals.window = pyglet.window.Window(width=globals.map.win_w, height=globals.map.win_h)
     fsm.curr_state = state.STATE_null()
 
@@ -247,6 +254,9 @@ if __name__ == '__main__':
         elif symbol == key.SPACE:
             print "key.SPACE RELEASED"
             globals.marek.move_state.action = globals.marek.moves.STATE_fall()
+        elif symbol == key.UP:
+            print "marek x, y: " + str(globals.marek.x) + ", " + str(globals.marek.y)
+            print "spider x, y: " + str(globals.spider.x) + ", " + str(globals.spider.y)
 
     pyglet.clock.schedule_interval(update, 1/60.0)  # Run update a 60 fps
     pyglet.app.run()
