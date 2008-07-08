@@ -4,10 +4,40 @@ import globals
 import sys                      # I need command line args
 import random                   # For debug
 import fsm						#Finite State Machine
-import state					#state definitions
+
+import state_null               # State definitions
+import state_intro              
+import state_play
+import state_exit
+import state_menu
+import state_death
+import state_load
+
 import pyglet                   # pyglet's sub-parts are lazy-loaded when called
 from pyglet.gl import *         # Quick access to gl functions
 from pyglet.window import key   # Quick access to key codes
+
+# Used to access global level states
+def STATE_null():
+    return state_null.STATE_null("null")
+    
+def STATE_intro():
+    return state_intro.STATE_intro("intro")
+    
+def STATE_play():
+    return state_play.STATE_play("play")
+
+def STATE_exit():
+    return state_exit.STATE_exit("exit")
+
+def STATE_menu():
+    return state_menu.STATE_menu("menu")
+
+def STATE_death():
+    return state_death.STATE_death("death")
+    
+def STATE_load():
+    return state_load.STATE_load("load")
 
 class Map:
     """ 
@@ -218,14 +248,14 @@ if __name__ == '__main__':
         print 'Please supply a number of spiders to spawn after the level file (1, 5, 50, etc)'
         exit()        
     globals.window = pyglet.window.Window(width=globals.map.win_w, height=globals.map.win_h)
-    fsm.curr_state = state.STATE_null()
+    fsm = fsm.FSM(STATE_null())   # Initialize the global Finite State Machine
 
     # Turn on alpha transparency
     glEnable(GL_BLEND)
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
 
     def update(dt):        
-		fsm.curr_state = fsm.do_state(fsm.curr_state, fsm.curr_state.timer(dt))
+		fsm.do_state(fsm.curr_state.update(dt))
 
     @globals.window.event
     def on_key_press(symbol, modifiers):
