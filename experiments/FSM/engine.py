@@ -288,5 +288,5 @@ if __name__ == '__main__':
             print "marek x, y: " + str(globals.marek.x) + ", " + str(globals.marek.y)
             print "spider x, y: " + str(globals.spider.x) + ", " + str(globals.spider.y)
 
-    pyglet.clock.schedule_interval(update, 1/60.0)  # Run update a 60 fps
+    pyglet.clock.schedule(update)  # Run update on every vsync
     pyglet.app.run()
