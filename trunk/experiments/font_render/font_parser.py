@@ -5,11 +5,11 @@ from font_renderer import FontRenderer
 
 #prepares the config parser
 def prepare_parser(manifest):
-	parser = ConfigParser.SafeConfigParser()
+	parser = ConfigParser.ConfigParser()
 	try:
 		#debug line
 		print manifest
-		parser.read(open(manifest))
+		parser.readfp(open(manifest))
 	except ConfigParser.MissingSectionHeaderError:
 		print "Weird errors, I wasn't able to remove until I erased the comments"
 	
