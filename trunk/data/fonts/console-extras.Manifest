@@ -1,4 +1,4 @@
-﻿# These are additional symbols and accented letters from the IBM-PC
+# These are additional symbols and accented letters from the IBM-PC
 # extended character set. See http://en.wikipedia.org/wiki/Code_page_437
 # Eventually, these characters should be merged with the console.png ASCII font.
 # Because the font isn't tall enough, most accented uppercase letters are

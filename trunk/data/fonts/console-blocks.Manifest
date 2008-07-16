@@ -1,4 +1,4 @@
-﻿# These are the old school box drawing characters from the IBM-PC
+# These are the old school box drawing characters from the IBM-PC
 # extended character set. See http://en.wikipedia.org/wiki/Code_page_437
 # They are a 4x6 font that should be displayed with no extra line or char
 # spacing. Eventually, these characters should be merged with the
