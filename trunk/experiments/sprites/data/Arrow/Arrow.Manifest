@@ -1,0 +1,32 @@
+[metadata]
+ManifestType = Sprite
+SpriteClass = Arrow
+SpriteSize = 16x16
+
+[IdleLeft]
+SpriteSheet = idle.png
+Loop = 1
+
+[IdleRight]
+SpriteSheet = idle.png
+Loop = 1
+FlipX = 1
+Initial = 1
+
+[WalkLeft]
+SpriteSheet = walk.png
+Loop = 1
+
+[WalkRight]
+SpriteSheet = walk.png
+Loop = 1
+FlipX = 1
+
+[Jump]
+SpriteSheet = jump.png
+Loop = 1
+
+[Fall]
+SpriteSheet = jump.png
+Loop = 1
+FlipY = 1
