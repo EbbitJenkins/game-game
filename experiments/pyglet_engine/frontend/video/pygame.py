@@ -28,20 +28,23 @@ class Image(object):
         pass
 
     @classmethod
-    def new(cls, width, height):
+    def create(cls, width, height):
         pass
 
-    def blit(self, x, y, prev_x=None, prev_y=None):
+    def __init__(self, pygame_surface):
+        self._surface = pygame_surface
+
+    def blit(self, x, y, tint=None):
         pass
 
     def blit_into(self, src, x, y):
-        pass
-
-    def get_tint(self, color):
         pass
 
     def get_transform(self, flip_x=False, flip_y=False):
         pass
         
     def get_grid(self, width, height):
+        pass
+
+    def get_region(self, x, y, width, height):
         pass
