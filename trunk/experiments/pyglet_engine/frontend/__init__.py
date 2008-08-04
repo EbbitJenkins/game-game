@@ -41,7 +41,10 @@ from frontend.video import pyglet as _video
 
 # TODO: The frontend will have to read/write a ConfigParser in the
 # user's home directory to load/save any graphics options or input
-# mappings the user has changed. Since keyboard scancodes are provided
+# mappings the user has changed. Unfortunately the scan codes differ
+# between Pygame and Pyglet so we'll need two setup files and if the
+# user switches frameworks they'll have to redefine their inputs.
+
 # by the platform OS, I'm hoping that Pygame and Pyglet both report
 # the same numbers. That would allow one config file per platform to
 # work with either framework.
@@ -53,53 +56,133 @@ from frontend.video import pyglet as _video
 # installer.
 
 
-class Event(_video.Event):
-    """High-level event handler.
+class ExampleEventHandler:
+    """Example high-level event handler class.
 
-    This base class provides dummy event handler methods for all
-    high-level events delivered by the frontend. Actual event handlers
-    should extend this class.
+    This class provides examples of all possible events that can be
+    sent to an event handler registered with Event.push(). Any object
+    can act as an event handler if it contains one or more methods
+    with the same names as shown in this class.
 
-    The Event class provides a high-level event abstraction over the
-    low-level events specific to the Pyglet or Pygame frameworks. The
-    class provides methods to register high-level event handlers and
-    to (re)map low-level events like keys or gamepad buttons to
-    high-level events like "jump" and "fire".
+    TODO: We can re-arrange all of these events if necessary. For
+    example, we can have a single on_key_press/on_key_release that
+    takes some generic scan code if that makes more sense for the main
+    game engine. My assumption has been that since each of these
+    actions will require possibly very different code so might as well
+    separate every event into a separate function.
 
     """
 
-    def push(self):
-        """Push this event handler on top of the event handler stack.
+    def on_draw(self):
+        pass
 
-        This event handler becomes the new active one receiving all
-        future events. The supplied handler should be a subclass of
-        the EventHandler class.
+    def on_update(self):
+        pass
+    
+    def on_fire(self):
+        pass
+
+    def on_jump(self):
+        pass
+
+    def on_start(self):
+        pass
+
+    def on_menu(self):
+        pass
+
+    def on_left_press(self):
+        pass
+
+    def on_left_release(self):
+        pass
+
+    def on_right_press(self):
+        pass
+
+    def on_right_release(self):
+        pass
+
+    def on_up_press(self):
+        pass
+
+    def on_up_release(self):
+        pass
+
+    def on_down_press(self):
+        pass
+
+    def on_down_release(self):
+        pass
+
+
+class Event(_video.Event):
+    """Low-level event loop abstration.
+
+    The Event class provides an abstraction over the low-level events
+    specific to the Pyglet or Pygame frameworks by dispatching
+    high-level events to handlers registered with push(). The class
+    also provides methods to (re)map low-level events like keys or
+    gamepad buttons to high-level events like "jump" and "fire".
+
+    TODO: Need to add fps, vsync, etc. attributes that video.pyglet
+    will use to schedule timers, etc.
+
+    """
+
+    # Stack of event handlers; active handler at the end of the list.
+    # There is always a dummy entry on the bottom of the stack, so the
+    # dispatch() method doesn't have to check for an empty stack.
+    _stack = [None]
+        
+    @classmethod
+    def on_key_press(cls, key):
+        if key in _key_press_table:
+            cls.dispatch(_key_press_table[key])
+
+    @classmethod
+    def on_key_release(cls, key):
+        if key in _key_release_table:
+            cls.dispatch(_key_release_table[key])
+        
+    @classmethod
+    def on_frame(cls, dt):
+        # TODO: Add the logic here to generate virtual logic frames
+        # based on the elapsed dt time.
+        cls.dispatch("on_update")
+        cls.dispatch("on_draw")
+        
+    @classmethod
+    def dispatch(cls, event):
+        handler = cls._stack[-1]
+        if hasattr(handler, event):
+            getattr(handler, event)()
+
+    @classmethod
+    def push(cls, handler):
+        """Push an event handler on top of the event handler stack.
+
+        The event handler becomes the new active one receiving all
+        future events.
 
         """
+        cls._stack.append(handler)
 
     @classmethod
     def pop(cls):
-        """Pop the top most handler off of the event handler stack."""
+        """Pop the top most handler off of the event handler stack.
 
-    @classmethod
-    def top(cls):
-        """Return the active event handler on top of the stack."""
+        If the stack is already empty, this function does nothing.
 
-    @classmethod
-    def on_key_press(scancode):
-        print "Key press: ", scancode
-        pass
-        
-    @classmethod
-    def on_key_release(scancode):
-        print "Key release: ", scancode
-        pass
-        
+        """
+        if len(cls._stack) > 1:
+            cls._stack.pop()
+
     # It may be more appropriate to make this a global function of the
     # module since we may want to delay the creation of the main
     # window until run() is called.
     @classmethod
-    def run(cls):
+    def run(cls, width, height):
         """Enter the main event loop.
 
         Calling this method starts the frame timer and begins
@@ -107,8 +190,12 @@ class Event(_video.Event):
         This method never returns altough it raises SystemExit when
         quiting the game.
 
+        The width/height arguments give the initial size of the main
+        game window. In the real game though, the main window is
+        always 320x240 (even if resized) so this won't be necessary.
+
         """
-        super(EventHandler, cls).run()
+        super(Event, cls).run(width, height)
 
 # TODO: May need to have clear() method that erases a rectangular area
 # of an image (or the entire image) and makes it transparent again.
@@ -148,16 +235,15 @@ class Image(_video.Image):
 
     Instance attributes:
 
-    width,height - The size of the Image in pixels. Note that with
-        Pyglet calling create(), get_transform() or either blit
-        routine may increase the image size to the nearest power of 2.
+    width,height - The size of the Image in pixels.
 
     """
 
     @classmethod
     def load(cls, filename):
         """Create and return an Image object loaded from an file."""
-        return super(Image, cls).load(filename)
+        image_and_size = super(Image, cls).load(filename)
+        return cls(*image_and_size)
 
     @classmethod
     def create(cls, width, height):
@@ -168,7 +254,13 @@ class Image(_video.Image):
         entire image surface with one or more blit_into() calls.
 
         """
-        return super(Image, cls).create(width, height)
+        _image = super(Image, cls).create(width, height)
+        return cls(_image, width, height)
+
+    def __init__(self, _image, width, height):
+        self._image = _image
+        self.width = width
+        self.height = height
 
     def blit(self, x, y, prev_x=None, prev_y=None, tint=None):
         """Draw Image to the screen at an interpolated position.
@@ -221,7 +313,8 @@ class Image(_video.Image):
         Image apply as in the get_grid() method.
 
         """
-        return super(Image, self).get_transform(flip_x, flip_y)
+        _image = super(Image, self).get_transform(flip_x, flip_y)
+        return self.__class__(_image, self.width, self.height)
 
     def get_grid(self, width, height):
         """Return a list of new Images by subdividing the original
@@ -241,7 +334,8 @@ class Image(_video.Image):
         be called again to return a new sequence of sub images.
 
         """
-        return super(Image, self).get_grid(width, height)
+        grid = super(Image, self).get_grid(width, height)
+        return [self.__class__(x, width, height) for x in grid]
 
     def get_region(self, x, y, width, height):
         """Return an Image created from a rectangular region of the
@@ -252,4 +346,23 @@ class Image(_video.Image):
         Image apply as in the get_grid() method.
 
         """
-        return super(Image, self).get_region(x, y, width, height)
+        _image = super(Image, self).get_region(x, y, width, height)
+        return self.__class__(_image, width, height)
+
+
+# Event dispatch table mapping key scan codes for a low-level key
+# press event to the name of a high level event handler.
+_key_press_table = { Event.UP: "on_up_press",                         
+                     Event.DOWN: "on_down_press",
+                     Event.LEFT: "on_left_press",
+                     Event.RIGHT: "on_right_press",
+                     Event.FIRE: "on_fire",
+                     Event.JUMP: "on_jump",
+                     Event.START: "on_start",
+                     Event.MENU: "on_menu" }
+
+# Dispatch table for key release events
+_key_release_table = { Event.UP: "on_up_release",
+                       Event.DOWN: "on_down_release",
+                       Event.LEFT: "on_left_release",
+                       Event.RIGHT: "on_right_release" }
