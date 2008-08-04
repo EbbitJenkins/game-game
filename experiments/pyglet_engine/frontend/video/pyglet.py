@@ -8,18 +8,42 @@ from outside the frontend module itself.
 
 """
 
-# Absolute import prevent name clash between this module and Pyglet framework
+# Absolute import prevents name clash between this module and Pyglet framework
 from __future__ import absolute_import
 
 import pyglet
 from pyglet.gl import *         # Quick access to gl functions and constants
-
+from pyglet.window import key   # Quick access to key codes
 
 class Event(object):
 
+    UP = key.UP
+    DOWN = key.DOWN
+    LEFT = key.LEFT
+    RIGHT = key.RIGHT
+    JUMP = key.LSHIFT
+    FIRE = key.LCTRL
+    START = key.ENTER
+    MENU = key.ESCAPE
+
     @classmethod
-    def run(cls):
-        pass
+    def run(cls, width, height):
+        window = pyglet.window.Window(width, height)
+
+        @window.event
+        def on_key_press(symbol, modifiers):
+            cls.on_key_press(symbol)
+
+        @window.event
+        def on_key_release(symbol, modifiers):
+            cls.on_key_release(symbol)
+
+        # Turn on alpha transparency
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+
+        pyglet.clock.schedule(cls.on_frame)
+        pyglet.app.run()
 
 
 class Image(object):
@@ -42,19 +66,15 @@ class Image(object):
 
     @classmethod
     def load(cls, filename):
-        return cls(pyglet.image.load(filename))
+        _image = pyglet.image.load(filename)
+        return (_image, _image.width, _image.height)
 
     @classmethod
     def create(cls, width, height):
         # TODO: Can we use Texture.create(rectangle=True) here? Does that
         # initialize the texture image like create_for_size() seems to
-        return cls(pyglet.image.Texture.create_for_size(GL_TEXTURE_2D, width,
-                                                        height, GL_RGBA))
-
-    def __init__(self, pyglet_image):
-        self._image = pyglet_image
-        self.width = pyglet_image.width
-        self.height = pyglet_image.height
+        return pyglet.image.Texture.create_for_size(GL_TEXTURE_2D, width,
+                                                    height, GL_RGBA)
 
     def blit(self, x, y, tint=None):
         # Caching the underlying image as a Texture may speed up future
@@ -68,14 +88,12 @@ class Image(object):
         self._image.blit_into(src._image, x, y, 0)
 
     def get_transform(self, flip_x=False, flip_y=False):
-        pyglet_image = self._image.get_texture().get_transform(flip_x, flip_y)
-        return self.__class__(pyglet_image)
+        return self._image.get_texture().get_transform(flip_x, flip_y)
         
     def get_grid(self, width, height):
         rows = self._image.height / height
         cols = self._image.width / width        
-        grid = pyglet.image.ImageGrid(self._image, rows, cols, width, height)
-        return [self.__class__(x) for x in grid]
+        return pyglet.image.ImageGrid(self._image, rows, cols, width, height)
 
     def get_region(self, x, y, width, height):
-        return self.__class__(self._image.get_region(x, y, width, height))
+        return self._image.get_region(x, y, width, height)
