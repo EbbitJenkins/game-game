@@ -68,7 +68,6 @@ def onEvent(event):
         fps += 1
     elif event.type == pygame.KEYDOWN and event.key == pygame.K_PAGEDOWN:
         if fps > 1:
-            pygame.time.set_timer(pygame.USEREVENT, 1000 / fps)
             fps -= 1
 
     # If + or - hit, adjust the virtual frame rate
