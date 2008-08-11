@@ -30,7 +30,7 @@ and use them to initialize the appropriate Pygame or Pyglet framework.
 # or Pyglet based on command line options. It will also check for
 # ImportErrors to automatically try the other framework if the one
 # requested is not available.
-from frontend.video import pyglet as _video
+from frontend.video import pygame as _video
 
 # TODO: The frontend will need to load a window icon, load the 256 color
 # palette image for Pygame, and set a window caption. Not sure what the
@@ -55,6 +55,12 @@ from frontend.video import pyglet as _video
 # ctypes or we need to include the pywin32 extensions in the Windows
 # installer.
 
+# TODO: We need a separate Image for loading from a file and a Surface
+# for blitting into. The main interface difference is that Image is
+# read only while a Surface has blit_into(). Also, Images are
+# automatically rescaled by the frontend, while a Surface has to be
+# recreated by the game engine on every resize through the on_reload()
+# event.
 
 class ExampleEventHandler:
     """Example high-level event handler class.
@@ -79,6 +85,9 @@ class ExampleEventHandler:
     def on_update(self):
         pass
     
+    def on_reload(self):
+        pass
+
     def on_fire(self):
         pass
 
@@ -178,9 +187,9 @@ class Event(_video.Event):
         if len(cls._stack) > 1:
             cls._stack.pop()
 
-    # It may be more appropriate to make this a global function of the
-    # module since we may want to delay the creation of the main
-    # window until run() is called.
+    # TODO: It may be more appropriate to make this a global function
+    # of the module since we may want to delay the creation of the
+    # main window until run() is called.
     @classmethod
     def run(cls, width, height):
         """Enter the main event loop.
@@ -242,8 +251,8 @@ class Image(_video.Image):
     @classmethod
     def load(cls, filename):
         """Create and return an Image object loaded from an file."""
-        image_and_size = super(Image, cls).load(filename)
-        return cls(*image_and_size)
+        (_image, (width, height)) = super(Image, cls).load(filename)
+        return cls(_image, width, height)
 
     @classmethod
     def create(cls, width, height):
