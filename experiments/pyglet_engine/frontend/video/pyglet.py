@@ -15,6 +15,7 @@ import pyglet
 from pyglet.gl import *         # Quick access to gl functions and constants
 from pyglet.window import key   # Quick access to key codes
 
+
 class Event(object):
 
     UP = key.UP
@@ -67,7 +68,7 @@ class Image(object):
     @classmethod
     def load(cls, filename):
         _image = pyglet.image.load(filename)
-        return (_image, _image.width, _image.height)
+        return (_image, (_image.width, _image.height))
 
     @classmethod
     def create(cls, width, height):
@@ -91,8 +92,8 @@ class Image(object):
         return self._image.get_texture().get_transform(flip_x, flip_y)
         
     def get_grid(self, width, height):
-        rows = self._image.height / height
-        cols = self._image.width / width        
+        rows = int(self.height / height)
+        cols = int(self.width / width)
         return pyglet.image.ImageGrid(self._image, rows, cols, width, height)
 
     def get_region(self, x, y, width, height):
