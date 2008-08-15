@@ -2,6 +2,7 @@
 class FSM:
     def __init__(self, state):
         self.curr_state = state
+        self.action = None
     def do_state(self, next_state):
         #check if there is a new state
         if not (next_state == self.curr_state):

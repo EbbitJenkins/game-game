@@ -3,6 +3,7 @@ import math
 import globals
 import sprite
 import fsm
+import em
 import engine
 
 import spider_ai
@@ -23,18 +24,18 @@ class spider(sprite.Sprite):
         self.curr_state = STATE_null(self)
         self.move_FSM = fsm.FSM(spider_move.STATE_null(self))   # initializes spider movement FSM
         self.ai_FSM = fsm.FSM(spider_ai.STATE_null(self))       # initializes spider AI FSM
-        self.image = self.images['stand_right']               # spider initial graphic
+        self.em = em.EventMachine(self)                         #  handles events
+        self.image = self.images['stand_right']                 # spider initial graphic
         self._width = self.image.width          # spider's width
         self._height = self.image.height        # spider's height
         self.hp = 100                           # spider's current hp
         self.hp_max = 100                       # max hp spider currently can have
         self.weight = 2     	                # how fast spider falls
-        self.run_speed = 2                      # how fast spider runs
-        self.run_length = 1                     # how long spider walks in each direction
+        self.run_speed = 1                      # how many pixels the spider will move each frame
+        self.run_length = 100                   # how long spider walks in each direction, in frames
         self.jump_speed = self.weight * 3.0     # how fast spider ascends/descends when he jumps or falls
-        self.jump_height = 2                    # how long spider can jump for, in seconds
-        self.jump_arc = 3                       # how fast spider can move in x-axis while jumping or falling
-        self.gravity = 'south'                  # which direction is falling
+        self.jump_height = 5                    # how long spider can jump for, in frames
+        self.gravity = 'south'                  # which direction is falling (unused)
         self.facing = 'west'                    # which direction it is facing
 
     def _load_images(self):
@@ -66,9 +67,9 @@ class STATE_idle(sprite.SpriteState):
             # since the spider has no more hp, go to death state
             next_state = STATE_death(self._sprite)
         if self._sprite.hp > 0:
-            self._sprite.ai_FSM.do_state(self._sprite.ai_FSM.curr_state.update(dt))          # decides what to do
-            self._sprite.move_FSM.do_state(self._sprite.move_FSM.curr_state.update(dt))      # calculates appropriate d['x'], d['y']   
-            self._sprite.move()                                                              # applies d['x'], d['y'] to x, y -- collision happens here always
+            self._sprite.ai_FSM.do_state(self._sprite.ai_FSM.curr_state.update())           # decides what to do, issues events
+            self._sprite.em.update()                                                        #  handles events
+            self._sprite.move()                                                             # applies d['x'], d['y'] to x, y -- collision happens here always
         return next_state
     def enter(self):
         print "enter spider.idle"
