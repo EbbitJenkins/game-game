@@ -1,4 +1,8 @@
 import sprite
+import bullet
+import globals
+import engine
+import em
 
 # These states are used by the spider.ai_FSM as possible states
 # Based on these states and environmental factors, logic runs to decide which state to go to next
@@ -30,6 +34,7 @@ class STATE_idle(sprite.SpriteState):
         @self._sprite.em.event
         def onIdle(event, sprite):
             sprite.d['x'] = 0        
+            sprite.d['y'] = 0
     def update(self):        
         next_state = self
         # isCollision returns a dictionary with results of collision checks in the cardinal directions
@@ -64,7 +69,8 @@ class STATE_left(sprite.SpriteState):
         # EVENTS
         @self._sprite.em.event
         def onWalkLeft(self, sprite):
-            sprite.d['x'] = -sprite.run_speed
+            sprite.d['x'] = -sprite.run_x
+            sprite.d['y'] = sprite.run_y
     def update(self):
         next_state = self
         collision = self._sprite.isCollision()
@@ -98,11 +104,13 @@ class STATE_right(sprite.SpriteState):
         #  EVENTS
         @self._sprite.em.event
         def onWalkRight(event, sprite):
-            sprite.d['x'] = sprite.run_speed            
+            sprite.d['x'] = sprite.run_x
+            sprite.d['y'] = sprite.run_y
     def update(self):
         next_state = self
         collision = self._sprite.isCollision()        
         if not self._sprite.isGrounded():
+            print str(self._sprite.isGrounded())
             next_state = STATE_fall(self._sprite)        
         elif collision["east"]:
             next_state = STATE_left(self._sprite)
@@ -135,14 +143,45 @@ class STATE_jump(sprite.SpriteState):
         def onJump(event, sprite):
             if event._frame == 0:
                 sprite.d['y'] = 0
+                if sprite.facing == "east":
+                    sprite.d['x'] = sprite.jump_x
+                elif sprite.facing == "west":
+                    sprite.d['x'] = -sprite.jump_x
             if event._timer > sprite.jump_height/5:
+                print "increase dy: " + str(sprite.d['y'])
                 event.reset_timer()
-                sprite.d['y'] = sprite.d['y'] + sprite.jump_speed/5
+                sprite.d['y'] = sprite.d['y'] + sprite.jump_y/5
+        @self._sprite.em.event
+        def onCollide(event, sprite):
+            sprite.d['x'] = -sprite.d['x']
+            print "collided, dx: " + str(sprite.d['x'])
+            sprite.em.notify("onCollide", "end")
+        @self._sprite.em.event
+        def onShoot(event, sprite):
+            if sprite.facing == "east":
+                tsprite = bullet.Bullet(sprite.x, sprite.y, sprite.bullet_speed, 0)          
+            else:
+                tsprite = bullet.Bullet(sprite.x, sprite.y, -sprite.bullet_speed, 0)
+            images = [engine.load_image('bullet.png')]
+            ani = em.Animation(images)            
+            event = em.SpriteEvent("onWalk", None, ani, 0, 0)
+            tsprite.em.add(event)    
+            images = [engine.load_image('bullet-explode.png')]
+            ani = em.Animation(images)            
+            event = em.SpriteEvent("onCollide", None, ani, 2, 0)
+            tsprite.em.add(event)
+            globals.bullets.append(tsprite)
+            sprite.em.notify("onShoot", "end")
     def update(self):
         next_state = self          
         self._timer = self._timer + 1
+        collision = self._sprite.isCollision()    
+        print "EAST: " + str(collision["east"]) + " |WEST: " + str(collision["west"])       
+        if collision["east"] or collision["west"]:
+            self._sprite.em.notify("onCollide", "start")
         if self._timer >= self._sprite.jump_height:           
             next_state = STATE_fall(self._sprite)
+            self._sprite.em.notify("onShoot", "start")
         return next_state
     def enter(self):
         print "enter spider.ai.jump"
@@ -163,16 +202,21 @@ class STATE_fall(sprite.SpriteState):
         #  EVENTS             
         @self._sprite.em.event
         def onFall(event, sprite):
+            print "onFall frame: " + str(event._frame)
             if event._frame == 0:
-                sprite.d['y'] = 0
-            print "-timer: " + str(event._timer) + " frame: " + str(event._frame) + " - jump_height/5: " + str(sprite.jump_height/5.0)
+                sprite.d['y'] = 0            
+                sprite.d['y'] = sprite.d['y'] - sprite.jump_y/5     
             if event._timer > sprite.jump_height/5:
                 event.reset_timer()
-                sprite.d['y'] = sprite.d['y'] - sprite.jump_speed/5     
+                sprite.d['y'] = sprite.d['y'] - sprite.jump_y/5     
+                print str(sprite.d['y'])
     def update(self):
         next_state = self
-        collision = self._sprite.isCollision()     
+        collision = self._sprite.isCollision()    
+        print "STATE_fall frame: " + str(self.frame)
+        self.frame = self.frame + 1
         if collision['south']:     
+            print str(collision['south'])
             if self._sprite.facing == 'east':
                 next_state = STATE_right(self._sprite)
             else:
@@ -180,6 +224,7 @@ class STATE_fall(sprite.SpriteState):
         return next_state
     def enter(self):
         print "enter spider.ai.fall"
+        self.frame = 0
         self._sprite.em.notify("onFall", "start")
     def leave(self):
         print "leave spider.ai.fall"

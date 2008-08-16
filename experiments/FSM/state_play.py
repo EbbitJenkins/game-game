@@ -11,8 +11,10 @@ class STATE_play(state.State):
             self._timer = self._timer + dt
             globals.camera.update()				#Do camera, graphical stuff
             globals.marek.do_timer(dt) 				#Do player stuff
-            for spider in globals.spiders:
-                spider.update(dt)                   # Do spider stuff
+            for sprite in globals.spiders:
+                sprite.update(dt)                   
+            for sprite in globals.bullets:
+                sprite.update(dt)
         else:
             #marek is in the DEATH state and has no lives left, thus game over
             next_state = engine.STATE_death()

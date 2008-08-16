@@ -139,6 +139,8 @@ class Camera:
         globals.marek.image.blit(globals.marek.x - self.x, globals.marek.y - self.y)
         for spider in globals.spiders:
             spider.image.blit(spider.x, spider.y)
+        for bullet in globals.bullets:
+            bullet.image.blit(bullet.x, bullet.y)
  
 def collide(a, b):
     if a.y + a.height < b.y:
