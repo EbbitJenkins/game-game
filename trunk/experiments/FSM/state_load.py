@@ -33,6 +33,10 @@ class STATE_load(state.State):
             sprite.em.add(event)
             event = em.SpriteEvent("onFall", None, ani, 0, 0)
             sprite.em.add(event)            
+            event = em.SpriteEvent("onShoot", None, ani, 0, 0)
+            sprite.em.add(event)            
+            event = em.Event("onCollide", None)
+            sprite.em.add(event)            
             globals.spiders.append(sprite)  
         globals.camera = engine.Camera(globals.map, globals.marek, globals.window.width, globals.window.height)
 		

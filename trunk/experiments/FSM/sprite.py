@@ -2,13 +2,15 @@ import fsm
 import state
 import globals
 import math
+import engine
 
 class Sprite(fsm.FSM):
     # creates all of the attributes describing the sprite's behavior
-    def __init__(self, x, y):
+    def __init__(self, x, y, *args):
         self.curr_state = STATE_null(self)          # For initializing internal FSM, must define own STATE_null to control flow
         self.images = self._load_images()           # gets a dictionary of sprite images
-        self.image = None                           # sprite's current image
+        self.image = engine.load_image('blank.png')
+        self._name = str(self)
         self._width = 0                             # width of sprite
         self._height = 0                            # height of sprite
         self._buffer = 5                # used for collision
@@ -21,7 +23,7 @@ class Sprite(fsm.FSM):
         self.weight = 0     	# How fast sprite falls
         self.gravity = 'south'  # Direction of gravity for sprite
         self.facing = 'west'    # Direction sprite is facing
-        self._init()
+        self._init(*args)
     
     def _init(self):
         # Put custom initialization stuff here
@@ -61,18 +63,18 @@ class Sprite(fsm.FSM):
         bound_e = bound_se or bound_ne
         bound_w = bound_nw or bound_sw
         
-        collision           = {"north": 0, "east": 0, "south": 0, "west": 0}
+        collision           = {"north": False, "east": False, "south": False, "west": False}
         
 
         # If the sprite is bound in a direction it is going, set that array position to false
         if (dy > 0 and bound_n):  
-            collision["north"] = 1
+            collision["north"] = True
         if (dx > 0 and bound_e):
-            collision["east"] = 1
+            collision["east"] = True
         if (dy < 0 and bound_s): 
-            collision["south"] = 1
+            collision["south"] = True
         if (dx < 0 and bound_w):
-            collision["west"] = 1
+            collision["west"] = True
             
         return collision
     def isGrounded(self):
@@ -110,15 +112,18 @@ class Sprite(fsm.FSM):
         if direction == "s":
             if not globals.map.bounds[int(y / globals.tile_h)][int(x / globals.tile_w)] == '=' and self.d['y'] < 0:
                 if count < math.fabs(dy):
+                    #print "count < math.fabs(dy) = true -- count: " + str(count) + " dy: " + str(dy)
                     collision = self._dig(dx, dy, x, y - 1, count + 1, direction)
                 else:
+                    #print "collision = false"
                     collision = False
             else:
                 if self.d['y'] < 0:
                     self.d['y'] = -(math.fabs(count - 1))    # Since down is negative d['y']...
                     collision = True
+                    #print "collision = true -- dy = " + str(self.d['y'])
                 else:
-                    collision = False
+                    collision = False                    
             return collision
         if direction == "se":
             if not globals.map.bounds[int(y / globals.tile_h)][int((x + self._width) / globals.tile_w)] == '=' and self.d['x'] > 0:

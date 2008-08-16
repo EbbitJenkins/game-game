@@ -51,6 +51,9 @@ class Event:
         
     def set_event(self, event):
         self._event = event
+
+    def reset_timer(self):
+        self._timer = 0        
         
     def activate(self):
         self._isActive = True
@@ -62,8 +65,9 @@ class Event:
     def __nonzero__(self):
         return self._isActive
         
-    def __call__(self, *args):
+    def __call__(self, *args):        
         self._event(self, *args)       
+        self._timer = self._timer + 1
 
 #  TODO:  Create these from the manifest and then add them to the EventMachine using add. 
 #  The main stuff that will be in the manifest (as of now) is:
@@ -88,10 +92,7 @@ class SpriteEvent(Event):
         self._timer = 0
         self._frame = 0
         self._isActive = False
-        
-    def reset_timer(self):
-        self._timer = 0
-        
+               
     def set_pre(self, frame_count=0):
         self._pre = frame_count
         
@@ -106,9 +107,9 @@ class SpriteEvent(Event):
             self._animation(self, *args)
             self._frame = self._frame + 1
         else:
-            self._animation(self, *args)
+            self._animation(self, *args)            
+            self._event(self, *args)    
             self._frame = self._frame + 1            
-            self._event(self, *args)     
             self._timer = self._timer + 1            
         
 #  TODO:  Initialize these from the manifest and add them to their respective events (example in state_load.py)
@@ -120,6 +121,8 @@ class Animation:
         
     def step_frame(self, event, sprite):
         sprite.image = self._iter.next()
+        sprite._width = sprite.image.width
+        sprite._height = sprite.image.height
         
     def __call__(self, *args):
         self.step_frame(*args)       

@@ -21,40 +21,23 @@ import spider_move
 class spider(sprite.Sprite):
     # creates all of the attributes describing the sprite's behavior
     def _init(self):
-        self.curr_state = STATE_null(self)
-        self.move_FSM = fsm.FSM(spider_move.STATE_null(self))   # initializes spider movement FSM
+        self.curr_state = STATE_new(self)
         self.ai_FSM = fsm.FSM(spider_ai.STATE_null(self))       # initializes spider AI FSM
-        self.em = em.EventMachine(self)                         #  handles events
-        self.image = self.images['stand_right']                 # spider initial graphic
-        self._width = self.image.width          # spider's width
-        self._height = self.image.height        # spider's height
+        self.em = em.EventMachine(self)                         #  handles events        
         self.hp = 100                           # spider's current hp
         self.hp_max = 100                       # max hp spider currently can have
         self.weight = 2     	                # how fast spider falls
-        self.run_speed = 1                      # how many pixels the spider will move each frame
+        self.run_x = 1                          # how many x-pixels the spider will move each frame, while walking
+        self.run_y = 0                          # how many y-pixels the spider will move each frame, while walking
         self.run_length = 100                   # how long spider walks in each direction, in frames
-        self.jump_speed = self.weight * 3.0     # how fast spider ascends/descends when he jumps or falls
-        self.jump_height = 5                    # how long spider can jump for, in frames
+        self.jump_y = self.weight * 3.0         # how fast spider ascends/descends when he jumps or falls, in y-pixels
+        self.jump_x = 3                         # how many x-pixels the spider will move while jumping
+        self.jump_height = 10                   # how long spider can jump for, in frames
+        self.bullet_speed = 4                   # how fast bullets go
         self.gravity = 'south'                  # which direction is falling (unused)
         self.facing = 'west'                    # which direction it is facing
 
-    def _load_images(self):
-        images = {}
-        images['stand_left'] = engine.load_image('spider.png')
-        images['stand_right'] = engine.load_image('spider.png')
-        return images        
-
-class STATE_null(sprite.SpriteState):
-    def __init__(self, sprite):
-        self._name = "null"
-        self._sprite = sprite
-    def update(self, dt):
-        next_state = STATE_new(self._sprite)
-        return next_state
-    def enter(self):
-        print "enter spider.null"
-    def leave(self):
-        print "leave spider.null"
+     
 
 # IDLE runs while nothing else is going on in this FSM
 class STATE_idle(sprite.SpriteState):
