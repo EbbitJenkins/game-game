@@ -8,11 +8,13 @@ from outside the frontend module itself.
 
 """
 
-# Absolute import prevents name clash between this module and Pyglet framework
+# Absolute import prevents name clash between this module and Pygame framework
 from __future__ import absolute_import
 import sys
 
 import pygame
+
+import frontend
 
 # TODO: We can use a weakref dictionary to track all the Image objects
 # still in use. That way we know what images to re-create when
@@ -20,7 +22,7 @@ import pygame
 # HWSURFACEs are lost after the game in minimized and restored.
 
 
-class Event(object):
+class App(frontend.App):
 
     UP = pygame.K_UP
     DOWN = pygame.K_DOWN
@@ -31,8 +33,7 @@ class Event(object):
     START = pygame.K_RETURN
     MENU = pygame.K_ESCAPE
 
-    @classmethod
-    def run(cls, width, height):
+    def run(self, width, height):
         global _display
 
         # Create display surface of the requested size
@@ -59,9 +60,9 @@ class Event(object):
                     if event.type == pygame.QUIT:
                         sys.exit()
                     elif event.type == pygame.KEYDOWN:
-                        cls.on_key_press(event.key)
+                        self.on_key_press(event.key)
                     elif event.type == pygame.KEYUP:
-                        cls.on_key_release(event.key)
+                        self.on_key_release(event.key)
                     #elif event.type == pygame.VIDEORESIZE:
                     #elif event.type == pygame.ACTIVEEVENT:
                     #    if event.state & pygame.APPINPUTFOCUS:
@@ -86,22 +87,18 @@ class Event(object):
                 # The measured elapsed time between each physical frame
                 # is used to maintain a constant virtual frame rate
                 cur_frame_ticks = pygame.time.get_ticks()                
-                cls.on_frame(cur_frame_ticks - prev_frame_ticks)
+                self.on_frame(cur_frame_ticks - prev_frame_ticks)
                 prev_frame_ticks = cur_frame_ticks
 
         finally:    
             pygame.quit()
 
-class Image(object):
+class Image(frontend.Image):
     """Proxy object for pygame.Surface
 
     The actual Pygame Surfaces used by this Image are stored as instance
     attributes of this proxy object.
     
-    Note that all of the factory methods will return instances of the
-    derived frontend.Image object and not of this base class Image
-    object.
-
     Instance attributes:
 
     width,height - The size of the Image in pixels.
@@ -117,19 +114,21 @@ class Image(object):
     # HWSURFACE? If we can't allow it then we'll just duplicate the
     # original surface.
 
-    @classmethod
-    def load(cls, filename):
+    @staticmethod
+    def load(filename):
         # TODO: If we're going to use 24bit images, then convert this
         # image into 8 bit right here so that further scaling/flipping
         # operations will run faster.
         _image = pygame.image.load(filename)
-        return (_image, _image.get_size())
+        width, height = _image.get_size()
+        return Image(_image, width, height)
 
-    @classmethod
-    def create(cls, width, height):
-        return pygame.Surface((width, height))
+    @staticmethod
+    def create(width, height):
+        _image = pygame.Surface((width, height))
+        return Image(_image, width, height)
 
-    def blit(self, x, y, tint=None):
+    def _blit(self, x, y, tint=None):
         # TODO: We should maintain our own windows size variable instead of
         # having to get it from the Pygame Surface each time.
         window_height = _display.get_size()[1]
@@ -139,26 +138,32 @@ class Image(object):
         self._image.blit(src._image, (x, self.height - y - src.height))
 
     def get_transform(self, flip_x=False, flip_y=False):
-        return pygame.transform.flip(self._image, flip_x, flip_y)
+        _image = pygame.transform.flip(self._image, flip_x, flip_y)
+        return Image(_image, self.width, self.height)
         
     def get_grid(self, width, height):
-        # To maintain the Pyglet coordinate convetion, the grid on the
-        # source image must run bottom-up and left-right.
-        result = []        
+        # To maintain the Pyglet coordinate convention, the
+        # subsurfaces must be created in bottom-up and left-right
+        # order along the original image.
+        grid = []
         for y in xrange(0, self.height, height):
             for x in xrange(0, self.width, width):
                 y = self.height - y - height
-                result.append(self._image.subsurface(x, y, width, height))
-        return result
+                grid.append(self._image.subsurface(x, y, width, height))
+
+        # Wrap each of the created Pygame surfaces in an Image object
+        return [Image(x, width, height) for x in grid]
 
     def get_region(self, x, y, width, height):
         y = self.height - y - height
-        return self._image.subsurface((x, y, width, height))
+        _image = self._image.subsurface((x, y, width, height))
+        return Image(_image, width, height)
 
     def on_reload():
         # TODO: Take care of resizing surfaces here by going through the
         # weakref dictionary of all Images that are still active
         pass
+
 
 pygame.init()
 #pygame.display.init()
