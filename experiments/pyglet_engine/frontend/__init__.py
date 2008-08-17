@@ -17,37 +17,31 @@ direction).
 When this module is imported for the first time, it will automatically
 parse any command line arguments used to select the video/audio modes
 and use them to initialize the appropriate Pygame or Pyglet framework.
+These options are also removed from sys.argv, allowing the main line
+code to report an error if any remaining (unknown) options are found
+on the command line.
 
 """
 
 # The real abstraction is provided by the video.pyglet and
-# video.pygame modules which provide the Image and EventHandler base
-# classes used by this module. The frontend subclasses are mostly just
-# wrappers around the base classes providing some common functionality
-# and a documented public interface for the main game engine.
+# video.pygame modules which subclass the Image and App base classes
+# in this module. These frontend base classes are mostly there to
+# provide some common functionality and a documented public interface
+# for the main game engine.
 
-# TODO: Eventually this will be a conditional import to select Pygame
-# or Pyglet based on command line options. It will also check for
-# ImportErrors to automatically try the other framework if the one
-# requested is not available.
-from frontend.video import pygame as _video
+# TODO: I could create a dummy _video proxy object that will throw an
+# exception if the init() function has not been called yet and the
+# real _video module is not yet loaded.
 
 # TODO: The frontend will need to load a window icon, load the 256 color
-# palette image for Pygame, and set a window caption. Not sure what the
-# best way is to specify that. We can hardcode it into the frontend, have
-# the frontend get it directly via the manifest module from an "init"
-# Manifest, or perhaps pass it as arguments into the EventHandler.run()
-# method.
+# palette image for Pygame, and set a window caption. We can pass all this
+# in through the init() method.
 
 # TODO: The frontend will have to read/write a ConfigParser in the
 # user's home directory to load/save any graphics options or input
 # mappings the user has changed. Unfortunately the scan codes differ
 # between Pygame and Pyglet so we'll need two setup files and if the
 # user switches frameworks they'll have to redefine their inputs.
-
-# by the platform OS, I'm hoping that Pygame and Pyglet both report
-# the same numbers. That would allow one config file per platform to
-# work with either framework.
 
 # TODO: On Windows we'll eventually run with pythonw.exe (i.e. no console)
 # if we can't initialize either Pygame or Pyglet we need to call
@@ -60,7 +54,10 @@ from frontend.video import pygame as _video
 # read only while a Surface has blit_into(). Also, Images are
 # automatically rescaled by the frontend, while a Surface has to be
 # recreated by the game engine on every resize through the on_reload()
-# event.
+# event. UPDATE: With my current way of thinking, a separate Image and
+# Surface will not be necessary. I'll know for sure once I actually
+# have scaling, and then I can remove this comment for good.
+
 
 class ExampleEventHandler:
     """Example high-level event handler class.
@@ -73,9 +70,9 @@ class ExampleEventHandler:
     TODO: We can re-arrange all of these events if necessary. For
     example, we can have a single on_key_press/on_key_release that
     takes some generic scan code if that makes more sense for the main
-    game engine. My assumption has been that since each of these
-    actions will require possibly very different code so might as well
-    separate every event into a separate function.
+    game engine. My assumption has been that each of these actions
+    will require somewhat different code so might as well use a
+    separate function for every event.
 
     """
 
@@ -85,9 +82,6 @@ class ExampleEventHandler:
     def on_update(self):
         pass
     
-    def on_reload(self):
-        pass
-
     def on_fire(self):
         pass
 
@@ -124,15 +118,34 @@ class ExampleEventHandler:
     def on_down_release(self):
         pass
 
+    def on_menu_left(self):
+        pass
+    
+    def on_menu_right(self):
+        pass
+    
+    def on_menu_up(self):
+        pass
+    
+    def on_menu_down(self):
+        pass
 
-class Event(_video.Event):
+
+class InitError(RuntimeError):
+    pass
+
+
+class App(object):
     """Low-level event loop abstration.
 
-    The Event class provides an abstraction over the low-level events
-    specific to the Pyglet or Pygame frameworks by dispatching
+    The singleton App class provides an abstraction over the low-level
+    events specific to the Pyglet or Pygame frameworks by dispatching
     high-level events to handlers registered with push(). The class
     also provides methods to (re)map low-level events like keys or
     gamepad buttons to high-level events like "jump" and "fire".
+
+    Use the app() function to return the singleton instance of this
+    class.
 
     TODO: Need to add fps, vsync, etc. attributes that video.pyglet
     will use to schedule timers, etc.
@@ -144,54 +157,44 @@ class Event(_video.Event):
     # dispatch() method doesn't have to check for an empty stack.
     _stack = [None]
         
-    @classmethod
-    def on_key_press(cls, key):
+    def on_key_press(self, key):
         if key in _key_press_table:
-            cls.dispatch(_key_press_table[key])
+            self.dispatch(_key_press_table[key])
 
-    @classmethod
-    def on_key_release(cls, key):
+    def on_key_release(self, key):
         if key in _key_release_table:
-            cls.dispatch(_key_release_table[key])
+            self.dispatch(_key_release_table[key])
         
-    @classmethod
-    def on_frame(cls, dt):
+    def on_frame(self, dt):
         # TODO: Add the logic here to generate virtual logic frames
         # based on the elapsed dt time.
-        cls.dispatch("on_update")
-        cls.dispatch("on_draw")
-        
-    @classmethod
-    def dispatch(cls, event):
-        handler = cls._stack[-1]
+        self.dispatch("on_update")
+        self.dispatch("on_draw")
+    
+    def dispatch(self, event):
+        handler = self._stack[-1]
         if hasattr(handler, event):
             getattr(handler, event)()
 
-    @classmethod
-    def push(cls, handler):
+    def push(self, handler):
         """Push an event handler on top of the event handler stack.
 
         The event handler becomes the new active one receiving all
         future events.
 
         """
-        cls._stack.append(handler)
+        self._stack.append(handler)
 
-    @classmethod
-    def pop(cls):
+    def pop(self):
         """Pop the top most handler off of the event handler stack.
 
         If the stack is already empty, this function does nothing.
 
         """
-        if len(cls._stack) > 1:
-            cls._stack.pop()
+        if len(self._stack) > 1:
+            self._stack.pop()
 
-    # TODO: It may be more appropriate to make this a global function
-    # of the module since we may want to delay the creation of the
-    # main window until run() is called.
-    @classmethod
-    def run(cls, width, height):
+    def run(self, width, height):
         """Enter the main event loop.
 
         Calling this method starts the frame timer and begins
@@ -204,7 +207,6 @@ class Event(_video.Event):
         always 320x240 (even if resized) so this won't be necessary.
 
         """
-        super(Event, cls).run(width, height)
 
 # TODO: May need to have clear() method that erases a rectangular area
 # of an image (or the entire image) and makes it transparent again.
@@ -223,13 +225,14 @@ class Event(_video.Event):
 # Using an OpenGL display list would also solve the problem of a clear()
 # method: just delete the display list and you've got a transparent "image"
 # again.
-class Image(_video.Image):
+class Image(object):
     """A single image that can be drawn to screen or drawn into.
 
-    New Image objects are created by calling the load() or new() class
-    methods, or by calling the get_xxx() methods of an existing Image
-    to obtain a modified version of the original. However, an Image
-    object should not be instantiated directly by outside code.
+    New Image objects are created by calling the image.load() or
+    image.create() factory methods, and by calling the get_xxx()
+    methods of an existing Image to obtain a modified version of the
+    original. However, an Image object should not be instantiated
+    directly by outside code.
 
     An Image object may be blitted to the screen, and other Image
     objects may be blitted into an Image object.
@@ -248,14 +251,13 @@ class Image(_video.Image):
 
     """
 
-    @classmethod
-    def load(cls, filename):
-        """Create and return an Image object loaded from an file."""
-        (_image, (width, height)) = super(Image, cls).load(filename)
-        return cls(_image, width, height)
+    @staticmethod
+    def load(filename):
+        """Create and return an Image object loaded from a file."""
+        return _video.Image.load(filename)
 
-    @classmethod
-    def create(cls, width, height):
+    @staticmethod
+    def create(width, height):
         """Create and return a new Image object of the given size.
 
         Note that the Image canvas may initially contain garbage data.
@@ -263,8 +265,7 @@ class Image(_video.Image):
         entire image surface with one or more blit_into() calls.
 
         """
-        _image = super(Image, cls).create(width, height)
-        return cls(_image, width, height)
+        return _video.Image.create(width, height)
 
     def __init__(self, _image, width, height):
         self._image = _image
@@ -295,9 +296,16 @@ class Image(_video.Image):
 
         """
 
+        # TODO: Provide an area and prev_area tuple argument that
+        # blits only a subregion of the image. This allows interpolation
+        # of the camera position and under Pygame is also more efficient
+        # because a separate subsurface doesn't have to be created
+        # on every display frame; Surface.blit() already takes an area
+        # argument.
+
         # TODO: Add common code to do the interpolation and pass the
-        # computed x,y to the base class blit()
-        super(Image, self).blit(x, y, tint)
+        # computed x,y to the derived class _blit()
+        self._blit(x, y, tint)
 
     def blit_into(self, src, x, y):
         """Blit another Image into this one.
@@ -312,7 +320,6 @@ class Image(_video.Image):
         actually take two bitmap transfers.
 
         """
-        super(Image, self).blit_into(src, x, y)
 
     def get_transform(self, flip_x=False, flip_y=False):
         """Return a new horizontally and/or vertically flipped Image.
@@ -322,8 +329,6 @@ class Image(_video.Image):
         Image apply as in the get_grid() method.
 
         """
-        _image = super(Image, self).get_transform(flip_x, flip_y)
-        return self.__class__(_image, self.width, self.height)
 
     def get_grid(self, width, height):
         """Return a list of new Images by subdividing the original
@@ -343,8 +348,6 @@ class Image(_video.Image):
         be called again to return a new sequence of sub images.
 
         """
-        grid = super(Image, self).get_grid(width, height)
-        return [self.__class__(x, width, height) for x in grid]
 
     def get_region(self, x, y, width, height):
         """Return an Image created from a rectangular region of the
@@ -355,23 +358,91 @@ class Image(_video.Image):
         Image apply as in the get_grid() method.
 
         """
-        _image = super(Image, self).get_region(x, y, width, height)
-        return self.__class__(_image, width, height)
 
 
-# Event dispatch table mapping key scan codes for a low-level key
-# press event to the name of a high level event handler.
-_key_press_table = { Event.UP: "on_up_press",                         
-                     Event.DOWN: "on_down_press",
-                     Event.LEFT: "on_left_press",
-                     Event.RIGHT: "on_right_press",
-                     Event.FIRE: "on_fire",
-                     Event.JUMP: "on_jump",
-                     Event.START: "on_start",
-                     Event.MENU: "on_menu" }
+# TODO: Eventually this will be a conditional import to select Pygame
+# or Pyglet based on command line options. It will also check for
+# ImportErrors to automatically try the other framework if the one
+# requested is not available.
+def init(options):
+    """Initialize the frontend module
 
-# Dispatch table for key release events
-_key_release_table = { Event.UP: "on_up_release",
-                       Event.DOWN: "on_down_release",
-                       Event.LEFT: "on_left_release",
-                       Event.RIGHT: "on_right_release" }
+    This function should be called once to initialize the frontend
+    module and import either the Pygame or Pyglet framework.
+
+    The options argument is the same as the options object returned by
+    Optionparser.parse_args(). It chooses which framework to use and
+    how to initialize it.
+
+    """
+    
+    global _app
+    global _video
+    global _key_press_table
+    global _key_release_table
+
+    # Do nothing if module is already initialized
+    if _app:
+        return
+    
+    # If a specific framework was requested, then use only it. Let the
+    # exception fall through if the given framework cannot initialize
+    if options.video == "pygame":
+        from frontend.video import pygame as _video
+    elif options.video == "pyglet":
+        from frontend.video import pyglet as _video
+
+    # If no specific framework was given, default to Pygame software
+    # rendering (for max compatibility), but fall back to Pyglet if
+    # Pygame/SDL cannot import or initialize. If neither framework
+    # modules can be imported or initialize, then raise an exception
+    # encapsulating the individual exceptions returned by both
+    # frameworks.
+    else:
+        try:
+            from frontend.video import pygame as _video
+        except (ImportError, InitError), e1:
+            try:
+                from frontend.video import pyglet as _video
+            except (ImportError, InitError), e2:
+                # TODO: What we could really use at this point are
+                # chained exceptions. But since those will not be around
+                # until Python 3000 (PEP 344), I'll have to hack something
+                # up myself with FrontendInitError
+                raise
+
+    # Create the singleton App object to initialize frontend module
+    _app = _video.App()
+
+    # The press/release event dispatch tables can now be initialized
+    # because the framework specific low-level events are now
+    # available.
+    _key_press_table = { _app.UP: "on_up_press",                         
+                         _app.DOWN: "on_down_press",
+                         _app.LEFT: "on_left_press",
+                         _app.RIGHT: "on_right_press",
+                         _app.FIRE: "on_fire",
+                         _app.JUMP: "on_jump",
+                         _app.START: "on_start",
+                         _app.MENU: "on_menu" }
+
+    _key_release_table = { _app.UP: "on_up_release",
+                           _app.DOWN: "on_down_release",
+                           _app.LEFT: "on_left_release",
+                           _app.RIGHT: "on_right_release" }
+
+
+def app():
+    """Return the singleton App object"""
+    return _app
+
+# Event dispatch table mapping key scan codes for low-level key
+# press/release events to the name of a high level event handler.
+# Initialized by the init() method once a specific framework is loaded
+# and the App object has been created
+_key_press_table = None
+_key_release_table = None
+
+# The singleton instance of the App() class created by the
+# _video.init() function.
+_app = None

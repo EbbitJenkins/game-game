@@ -2,6 +2,8 @@
 
 import sys                      # I need command line args
 import random                   # For debug
+from optparse import OptionParser, OptionGroup
+
 import frontend                 # Abstraction to Pyglet/Python
 
 class Map:
@@ -350,15 +352,46 @@ def load_map(filename):
 
     return Map(map_image, bounds, int(win_w), int(win_h))
 
+# All command line parsing must be done in the main module. A
+# OptionParser will report errors if unused options are found on
+# the command line, so it's not possible to distribute the option
+# parsing among all the modules.
+#
+# TODO: Are the standard OptionParser error messages translated?
+def parse_args():
+    parser = OptionParser(usage="%prog [options] MAP.level")
+    parser.add_option("--video", dest="video", metavar="FRAMEWORK",
+                      choices=["pygame", "pyglet"],
+                      help='use either "pygame" or "pyglet" framework '
+                           'for video')
+
+    pygame = OptionGroup(parser, "Pygame video options",
+                               "Only used when Pygame is selected as the "
+                               "video framework.")
+    pygame.add_option("--sdl-videodriver", dest="videodriver", metavar="DRIVER",
+                      help='override SDL_VIDEODRIVER environment variable')
+    pygame.add_option("--sdl-hwsurface", dest="hwsurface", action="store_true",
+                      help='use hardware accelerated surfaces')
+    parser.add_option_group(pygame)
+
+    (options, args) = parser.parse_args()
+
+    # TODO: The real game should not have any required positional args
+    try:
+        map_file = args[0]
+    except IndexError:
+        parser.error("missing map file")
+
+    return (options, map_file)
+
 if __name__ == '__main__':
     tile_w, tile_h = None, None
 
     # Get map arg
-    try:
-        map = load_map(sys.argv[1])
-    except IndexError:
-        print 'Please supply a level file (big1.level, big2.level, small.level)'
-        exit()
+    # TODO: map is a builtin function. We shouldn't override it here
+    (options, map_file) = parse_args()
+    frontend.init(options)
+    map = load_map(map_file)
 
     player = Sprite(160, 120, 4)
     camera = Camera(map, player, map.win_w, map.win_h)
@@ -390,5 +423,5 @@ if __name__ == '__main__':
         def on_update(self):
             camera.update()
 
-    frontend.Event.push(EventHandler())
-    frontend.Event.run(map.win_w, map.win_h)
+    frontend.app().push(EventHandler())
+    frontend.app().run(map.win_w, map.win_h)
