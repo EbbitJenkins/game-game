@@ -1,0 +1,1 @@
+Game-Game is an adventure-platformer in the style of NES games like Metroid and Castlevania II, chock-full of exploration and danger.
